@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- Header with back button, chat name, and group info button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#6200EE"
+        android:elevation="4dp">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center_vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/arrow_back"
+            android:contentDescription="Wróć"
+            android:layout_marginEnd="16dp"
+            app:tint="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/chatUserNameTextView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:text="Nazwa grupy"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <ImageButton
+            android:id="@+id/groupInfoButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center_vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_info_24"
+            android:contentDescription="Informacje o grupie"
+            app:tint="#FFFFFF" />
+
+    </LinearLayout>
+
+    <!-- Messages RecyclerView -->
+
+    <!-- Message input area -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/messagesRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="415dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:padding="8dp"
+        android:scrollbars="vertical" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#F8F9FA"
+        android:elevation="8dp"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/messageEditText"
+            android:layout_width="117dp"
+            android:layout_height="176dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:autofillHints="textMessage"
+            android:background="@drawable/edit_text_background"
+            android:hint="Napisz wiadomość..."
+            android:importantForAutofill="yes"
+            android:inputType="textCapSentences|textMultiLine"
+            android:maxHeight="120dp"
+            android:maxLines="4"
+            android:minHeight="48dp"
+            android:padding="12dp"
+            android:scrollbars="vertical"
+            android:textColor="#000000"
+            android:textColorHint="#666666"
+            android:textSize="14sp" />
+
+        <ImageButton
+            android:id="@+id/sendButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_sent_message"
+            android:src="@drawable/send_button_background"
+            android:contentDescription="Wyślij"
+            android:scaleType="center"
+            app:tint="#FFFFFF" />
+
+    </LinearLayout>
+
+</LinearLayout>
