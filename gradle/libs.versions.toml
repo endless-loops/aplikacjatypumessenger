@@ -1,0 +1,56 @@
+# gradle/libs.versions.toml
+# Version catalog for dependency management
+
+[versions]
+# Build tools - Your current versions (keeping as-is)
+agp = "8.13.0"                   # Your version - exists in 2025
+kotlin = "2.2.10"                # Your Kotlin version
+googleServices = "4.4.3"        # Your Google Services version
+
+# Core Android - Your SDK versions
+compileSdk = "36"                # Your version - likely API 36 exists in 2025
+minSdk = "24"
+targetSdk = "36"                 # Your version
+
+# AndroidX Libraries - Your versions
+androidxAppcompat = "1.7.1"     # Your version
+coreKtx = "1.17.0"              # Your version - likely exists in late 2025
+material = "1.13.0"              # Your Material version
+
+# Firebase - Your version
+firebaseBom = "34.2.0"          # Your Firebase BOM version
+
+# UI Components
+circleimageview = "3.1.0"
+
+# Testing
+junit = "4.13.2"
+androidxJunitExt = "1.1.5"
+espressoCore = "3.5.1"
+
+[libraries]
+# Core Android
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidxAppcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+
+# UI Components
+circleimageview = { group = "de.hdodenhof", name = "circleimageview", version.ref = "circleimageview" }
+
+# Firebase - Using BOM for version management
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
+firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
+firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
+firebase-storage-ktx = { group = "com.google.firebase", name = "firebase-storage-ktx" }
+
+# Testing
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit-ext = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunitExt" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+
+[plugins]
+# Application plugins - Using your versions
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

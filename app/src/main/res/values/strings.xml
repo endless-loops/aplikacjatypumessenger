@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Messenger App</string>
+    <string name="welcome_message">Witaj w Messengerze!</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Hasło</string>
+    <string name="username_hint">Nazwa użytkownika</string>
+    <string name="login_button">Zaloguj się</string>
+    <string name="register_button">Zarejestruj się</string>
+    <string name="no_account">Nie masz konta?</string>
+    <string name="have_account">Masz już konto?</string>
+    <string name="forgot_password">Zapomniałeś hasła?</string>
+    <string name="send_message">Wyślij</string>
+    <string name="type_message">Wpisz wiadomość...</string>
+</resources>
