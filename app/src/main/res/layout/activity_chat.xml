@@ -11,39 +11,32 @@
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         app:navigationIcon="@drawable/ic_arrow_back"
-        app:titleTextColor="@android:color/white">
+        app:titleTextColor="@android:color/white"
+        app:title="Czat"> <!-- ✅ DODAJ TYTUŁ -->
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <ImageButton
-                android:id="@+id/backButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                app:srcCompat="@drawable/ic_arrow_back"
-                android:tint="@android:color/white" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/chatUserImageView"
                 android:layout_width="36dp"
                 android:layout_height="36dp"
-                android:src="@drawable/ic_profile_placeholder"
-                android:layout_marginStart="8dp" />
+                android:layout_marginStart="8dp"
+                android:src="@drawable/ic_profile_placeholder" />
 
             <TextView
                 android:id="@+id/chatUserNameTextView"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:textSize="18sp"
-                android:textStyle="bold"
+                android:text="Nazwa czatu"
                 android:textColor="@android:color/white"
-                android:layout_marginStart="8dp" />
-
+                android:textSize="18sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
     </androidx.appcompat.widget.Toolbar>
@@ -68,9 +61,9 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:hint="Wpisz wiadomość..."
-            android:maxLines="3"
+            android:imeOptions="actionSend"
             android:inputType="textMultiLine"
-            android:imeOptions="actionSend" />
+            android:maxLines="3" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/sendButton"

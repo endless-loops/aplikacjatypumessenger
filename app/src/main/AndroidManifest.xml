@@ -34,15 +34,15 @@
         </activity>
         <activity
             android:name=".GroupManagementActivity"
-            android:exported="false" />
+            android:exported="true" />
 
         <activity
             android:name=".GroupChatActivity"
-            android:exported="false" />
+            android:exported="true" />
 
         <activity
             android:name=".CreateGroupActivity"
-            android:exported="false" />
+            android:exported="true" />
 
         <!-- Pozostałe Activity -->
         <activity android:name=".LoginActivity" />
@@ -62,7 +62,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Firebase Messaging Service -->
         <service
             android:name=".services.MessagingService"
             android:exported="false">

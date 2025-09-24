@@ -1,6 +1,5 @@
 package com.example.aplikacjatypumessenger.adapters
 
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,198 +9,162 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.aplikacjatypumessenger.R
 import com.example.aplikacjatypumessenger.models.Message
+import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class MessageAdapter(
-    private val messages: MutableList<Message>,
-    private val currentUserId: String
+    private val currentUserId: String,
+    private var isGroupChat: Boolean = false
 ) : RecyclerView.Adapter<MessageAdapter.MessageViewHolder>() {
+
+    private val messages = mutableListOf<Message>()
+    private val userCache = mutableMapOf<String, String>() // ✅ CACHE nazw użytkowników
+    private val db = FirebaseFirestore.getInstance()
+    private var onSenderNameClick: ((String) -> Unit)? = null
 
     companion object {
         private const val VIEW_TYPE_SENT = 1
         private const val VIEW_TYPE_RECEIVED = 2
-        private const val TAG = "MessageAdapter"
+    }
+
+    fun updateList(newMessages: List<Message>, isGroup: Boolean = false) {
+        this.isGroupChat = isGroup
+        messages.clear()
+        messages.addAll(newMessages)
+
+        // ✅ Załaduj nazwy użytkowników dla nowych wiadomości
+        loadUserNamesForMessages()
+
+        notifyDataSetChanged()
+    }
+
+    // ✅ ŁADUJ NAZWY UŻYTKOWNIKÓW
+    private fun loadUserNamesForMessages() {
+        val userIds = messages
+            .filter { it.senderId != currentUserId } // Tylko inni użytkownicy
+            .map { it.senderId }
+            .distinct()
+            .filter { !userCache.containsKey(it) } // Tylko niezaładowani
+
+        if (userIds.isEmpty()) return
+
+        userIds.forEach { userId ->
+            db.collection("users").document(userId)
+                .get()
+                .addOnSuccessListener { document ->
+                    val username = document.getString("username") ?: "Użytkownik"
+                    userCache[userId] = username
+
+                    // ✅ Odśwież tylko wiersze z tym użytkownikiem
+                    val positions = messages.mapIndexed { index, message ->
+                        if (message.senderId == userId) index else -1
+                    }.filter { it != -1 }
+
+                    positions.forEach { position ->
+                        notifyItemChanged(position)
+                    }
+                }
+                .addOnFailureListener {
+                    userCache[userId] = "Użytkownik" // Fallback
+                }
+        }
+    }
+
+    // ✅ POBERZ NAZWĘ UŻYTKOWNIKA Z CACHE
+    private fun getUserName(userId: String): String {
+        return userCache[userId] ?: "Użytkownik" // Fallback
     }
 
     override fun getItemViewType(position: Int): Int {
-        val viewType = if (messages[position].senderId == currentUserId) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
-        Log.d(TAG, "Message at position $position: viewType=$viewType, senderId=${messages[position].senderId}, currentUserId=$currentUserId")
-        return viewType
+        return if (messages[position].senderId == currentUserId) VIEW_TYPE_SENT else VIEW_TYPE_RECEIVED
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
-        val layout = if (viewType == VIEW_TYPE_SENT) {
+        val layoutRes = if (viewType == VIEW_TYPE_SENT) {
             R.layout.item_message_sent
         } else {
             R.layout.item_message_received
         }
 
-        val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
-        Log.d(TAG, "Created ViewHolder with viewType: $viewType")
+        val view = LayoutInflater.from(parent.context).inflate(layoutRes, parent, false)
         return MessageViewHolder(view, viewType)
     }
 
     override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
-        if (position < messages.size) {
-            val message = messages[position]
-            Log.d(TAG, "Binding message at position $position: '${message.text}' status='${message.status}' from ${message.senderId}")
-            holder.bind(message)
-        } else {
-            Log.e(TAG, "Invalid position $position, messages size: ${messages.size}")
-        }
+        val message = messages[position]
+        holder.bind(message, isGroupChat, ::getUserName) // ✅ Przekazujemy funkcję getUserName
     }
 
-    override fun getItemCount(): Int {
-        Log.d(TAG, "getItemCount: ${messages.size}")
-        return messages.size
+    override fun getItemCount(): Int = messages.size
+
+    fun setOnSenderNameClickListener(listener: (String) -> Unit) {
+        this.onSenderNameClick = listener
     }
 
-    inner class MessageViewHolder(itemView: View, private val viewType: Int) : RecyclerView.ViewHolder(itemView) {
-        private var messageTextView: TextView? = null
-        private var timeTextView: TextView? = null
-        private var statusImageView: ImageView? = null
+    inner class MessageViewHolder(itemView: View, private val viewType: Int) :
+        RecyclerView.ViewHolder(itemView) {
 
-        init {
-            try {
-                if (viewType == VIEW_TYPE_SENT) {
-                    messageTextView = itemView.findViewById(R.id.sentMessageTextView)
-                    timeTextView = itemView.findViewById(R.id.sentTimeTextView)
-                    statusImageView = itemView.findViewById(R.id.messageStatusImageView)
-                    Log.d(TAG, "Initialized sent message views: text=${messageTextView != null}, time=${timeTextView != null}, status=${statusImageView != null}")
-                } else {
-                    messageTextView = itemView.findViewById(R.id.receivedMessageTextView)
-                    timeTextView = itemView.findViewById(R.id.receivedTimeTextView)
-                    statusImageView = null // Explicitly set to null for received messages
-                    Log.d(TAG, "Initialized received message views: text=${messageTextView != null}, time=${timeTextView != null}")
+        private val messageText: TextView? = itemView.findViewById(
+            if (viewType == VIEW_TYPE_SENT) R.id.sentMessageTextView else R.id.receivedMessageTextView
+        )
+
+        private val timeText: TextView? = itemView.findViewById(
+            if (viewType == VIEW_TYPE_SENT) R.id.sentTimeTextView else R.id.receivedTimeTextView
+        )
+
+        private val statusIcon: ImageView? = itemView.findViewById(R.id.messageStatusImageView)
+        private val senderNameText: TextView? = itemView.findViewById(R.id.senderNameTextView)
+
+        // ✅ DODAJEMY PARAMETR getUserNameFunction
+        fun bind(message: Message, isGroupChat: Boolean, getUserName: (String) -> String) {
+            messageText?.text = message.text
+            timeText?.text = formatTime(message.timestamp)
+
+            if (viewType == VIEW_TYPE_SENT) {
+                setMessageStatus(message)
+            }
+
+            // ✅ TERAZ UŻYWAMY PRAWDZIWYCH NAZW
+            if (isGroupChat && viewType == VIEW_TYPE_RECEIVED && senderNameText != null) {
+                senderNameText.visibility = View.VISIBLE
+                val username = getUserName(message.senderId) // ✅ Prawdziwa nazwa użytkownika
+                senderNameText.text = username
+                senderNameText.setOnClickListener {
+                    onSenderNameClick?.invoke(message.senderId)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error initializing views", e)
+            } else {
+                senderNameText?.visibility = View.GONE
             }
         }
 
-        fun bind(message: Message) {
-            try {
-                val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp))
-
-                messageTextView?.text = message.text
-                timeTextView?.text = time
-
-                // Set status icon only for sent messages
-                if (viewType == VIEW_TYPE_SENT && statusImageView != null) {
-                    setMessageStatus(message.status, message)
-                    Log.d(TAG, "Setting status for sent message: ${message.status}")
-                } else if (viewType == VIEW_TYPE_SENT && statusImageView == null) {
-                    Log.e(TAG, "StatusImageView is null for sent message!")
-                }
-
-                Log.d(TAG, "Successfully bound message: '${message.text}' at $time with status '${message.status}'")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error binding message", e)
-            }
-        }
-
-        private fun setMessageStatus(status: String, message: Message) {
-            statusImageView?.let { statusIcon ->
-                // Determine the final status to display
-                val finalStatus = when {
-                    status.isNotEmpty() -> status.lowercase()
-                    // Fallback for legacy messages
+        private fun setMessageStatus(message: Message) {
+            statusIcon?.let { icon ->
+                val status = when {
                     message.seen -> "read"
-                    else -> "delivered"
+                    message.status == "delivered" -> "delivered"
+                    message.status == "sent" -> "sent"
+                    else -> "sending"
                 }
 
-                Log.d(TAG, "Setting status icon for message: originalStatus='$status', finalStatus='$finalStatus'")
-
-                // Clear any previous color filters and set visibility
-                statusIcon.clearColorFilter()
-                statusIcon.visibility = View.VISIBLE
-
-                when (finalStatus) {
-                    "sending" -> {
-                        statusIcon.setImageResource(R.drawable.ic_clock)
-                        statusIcon.setColorFilter(ContextCompat.getColor(itemView.context, android.R.color.darker_gray))
-                        Log.d(TAG, "Set sending status (clock icon)")
-                    }
-                    "sent" -> {
-                        statusIcon.setImageResource(R.drawable.ic_check)
-                        statusIcon.setColorFilter(ContextCompat.getColor(itemView.context, android.R.color.darker_gray))
-                        Log.d(TAG, "Set sent status (single check)")
-                    }
-                    "delivered" -> {
-                        statusIcon.setImageResource(R.drawable.ic_double_check)
-                        statusIcon.setColorFilter(ContextCompat.getColor(itemView.context, android.R.color.darker_gray))
-                        Log.d(TAG, "Set delivered status (double check gray)")
-                    }
-                    "read" -> {
-                        statusIcon.setImageResource(R.drawable.ic_double_check)
-                        statusIcon.setColorFilter(ContextCompat.getColor(itemView.context, android.R.color.holo_blue_bright))
-                        Log.d(TAG, "Set read status (double check blue)")
-                    }
-                    "failed", "error" -> {
-                        statusIcon.setImageResource(android.R.drawable.ic_dialog_alert)
-                        statusIcon.setColorFilter(ContextCompat.getColor(itemView.context, android.R.color.holo_red_light))
-                        Log.d(TAG, "Set failed status (alert icon)")
-                    }
-                    else -> {
-                        // Default to sent status for unknown status
-                        statusIcon.setImageResource(R.drawable.ic_check)
-                        statusIcon.setColorFilter(ContextCompat.getColor(itemView.context, android.R.color.darker_gray))
-                        Log.w(TAG, "Unknown status '$finalStatus', defaulting to sent status")
-                    }
+                when (status) {
+                    "sending" -> icon.setImageResource(R.drawable.ic_clock)
+                    "sent" -> icon.setImageResource(R.drawable.ic_check)
+                    "delivered", "read" -> icon.setImageResource(R.drawable.ic_double_check)
                 }
-            } ?: Log.e(TAG, "Status ImageView is null!")
-        }
-    }
 
-    // Method to update entire message list
-    fun updateMessages(newMessages: List<Message>) {
-        Log.d(TAG, "Updating messages: ${newMessages.size} messages")
-        messages.clear()
-        messages.addAll(newMessages)
-        notifyDataSetChanged()
-    }
-
-    // Method to add a single message
-    fun addMessage(message: Message) {
-        Log.d(TAG, "Adding message: '${message.text}' with status '${message.status}' from ${message.senderId}")
-        messages.add(message)
-        notifyItemInserted(messages.size - 1)
-    }
-
-    // Method to update a specific message (improved)
-    fun updateMessage(message: Message) {
-        val index = messages.indexOfFirst { it.id == message.id }
-        if (index != -1) {
-            Log.d(TAG, "Updating message at index $index: '${message.text}' status changed to '${message.status}'")
-            val oldMessage = messages[index]
-            messages[index] = message
-
-            // Only notify if something actually changed
-            if (oldMessage.status != message.status || oldMessage.seen != message.seen) {
-                notifyItemChanged(index)
+                val color = when (status) {
+                    "read" -> android.R.color.holo_blue_bright
+                    else -> android.R.color.darker_gray
+                }
+                icon.setColorFilter(ContextCompat.getColor(itemView.context, color))
+                icon.visibility = View.VISIBLE
             }
-        } else {
-            Log.w(TAG, "Message to update not found: ${message.id}")
+        }
+
+        private fun formatTime(timestamp: Long): String {
+            return SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
         }
     }
-
-    // Method to update only message status (more efficient)
-    fun updateMessageStatus(messageId: String, newStatus: String) {
-        val index = messages.indexOfFirst { it.id == messageId }
-        if (index != -1) {
-            val message = messages[index]
-            if (message.status != newStatus) {
-                Log.d(TAG, "Updating status for message $messageId from '${message.status}' to '$newStatus'")
-                message.status = newStatus
-                notifyItemChanged(index)
-            }
-        } else {
-            Log.w(TAG, "Message to update status not found: $messageId")
-        }
-    }
-
-    // Method to get current messages (for debugging)
-    fun getCurrentMessages(): List<Message> = messages.toList()
 }

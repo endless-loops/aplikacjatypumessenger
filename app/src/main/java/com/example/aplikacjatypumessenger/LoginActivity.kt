@@ -1,5 +1,7 @@
 package com.example.aplikacjatypumessenger
 
+import androidx.activity.viewModels
+import com.example.aplikacjatypumessenger.viewmodels.LoginViewModel
 import android.content.Intent
 import android.os.Bundle
 import android.util.Patterns
@@ -7,13 +9,18 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.example.aplikacjatypumessenger.databinding.ActivityLoginBinding
+import com.example.aplikacjatypumessenger.viewmodels.LoginState
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
+
+    private val viewModel: LoginViewModel by viewModels()
     private lateinit var binding: ActivityLoginBinding
     private lateinit var auth: FirebaseAuth
 
@@ -101,45 +108,32 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun loginUser(email: String, password: String) {
-        // Pokaż progress bar
         binding.progressBar.visibility = View.VISIBLE
         binding.loginButton.isEnabled = false
 
-        // Utwórz task logowania
-        val loginTask = auth.signInWithEmailAndPassword(email, password)
-
-        // Ustaw timeout na 10 sekund
-        val handler = android.os.Handler(mainLooper)
-        val timeoutRunnable = Runnable {
-            if (binding.progressBar.visibility == View.VISIBLE) {
-                binding.progressBar.visibility = View.GONE
-                binding.loginButton.isEnabled = true
-                showError("Logowanie zajmuje zbyt długo. Sprawdź połączenie z internetem.")
-            }
-        }
-        handler.postDelayed(timeoutRunnable, 10_000)
-
-        loginTask
-            .addOnCompleteListener { task ->
-                // Usuń timeout
-                handler.removeCallbacks(timeoutRunnable)
-                binding.progressBar.visibility = View.GONE
-                binding.loginButton.isEnabled = true
-
-                if (task.isSuccessful) {
-                    navigateToMainActivity()
-                } else {
-                    showError("Logowanie nieudane: ${task.exception?.message ?: "Nieznany błąd"}")
+        // Użyj lifecycleScope - to działa w Activity
+        lifecycleScope.launch {
+            viewModel.loginState.collect { state ->
+                when (state) {
+                    is LoginState.Loading -> {
+                        // Loading już ustawiony
+                    }
+                    is LoginState.Success -> {
+                        binding.progressBar.visibility = View.GONE
+                        binding.loginButton.isEnabled = true
+                        navigateToMainActivity()
+                    }
+                    is LoginState.Error -> {
+                        binding.progressBar.visibility = View.GONE
+                        binding.loginButton.isEnabled = true
+                        showError(state.message)
+                    }
+                    else -> {}
                 }
             }
-            .addOnFailureListener { exception ->
-                // Usuń timeout
-                handler.removeCallbacks(timeoutRunnable)
-                binding.progressBar.visibility = View.GONE
-                binding.loginButton.isEnabled = true
+        }
 
-                showError("Błąd logowania: ${exception.message}")
-            }
+        viewModel.loginUser(email, password)
     }
 
 

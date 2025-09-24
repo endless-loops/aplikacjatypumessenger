@@ -9,9 +9,14 @@ import com.example.aplikacjatypumessenger.R
 import com.example.aplikacjatypumessenger.models.Chat
 
 class ChatAdapter(
-    private val chats: List<Chat>,
+    private var chats: List<Chat>,
     private val onChatClick: (Chat) -> Unit
 ) : RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
+
+    fun updateList(newChats: List<Chat>) {
+        this.chats = newChats
+        notifyDataSetChanged()
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
         val view = LayoutInflater.from(parent.context)

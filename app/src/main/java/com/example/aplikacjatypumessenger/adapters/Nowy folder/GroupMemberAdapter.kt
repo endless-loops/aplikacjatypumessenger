@@ -7,13 +7,13 @@ import android.widget.ImageButton
 import android.widget.PopupMenu
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.example.aplikacatypumessenger.R
-import com.example.aplikacatypumessenger.models.User
+import com.example.aplikacjatypumessenger.R
+import com.example.aplikacjatypumessenger.models.User
 
 class GroupMemberAdapter(
     private val members: List<User>,
     var isAdmin: Boolean,
-    private val currentUserId: String,  // 👈 PRZEKAŻ ID PRZEZ KONSTRUKTOR
+    private val currentUserId: String,
     private val onAction: (User, String) -> Unit
 ) : RecyclerView.Adapter<GroupMemberAdapter.MemberViewHolder>() {
 
@@ -38,7 +38,7 @@ class GroupMemberAdapter(
             userNameText.text = user.username
             userStatusText.text = if (user.status == "online") "Online" else "Offline"
 
-            // 👇 TERAZ UŻYWAMY currentUserId Z KONSTRUKTORA
+            // Przyciski opcji tylko dla admina i innych użytkowników
             optionsButton.visibility = if (isAdmin && user.id != currentUserId) View.VISIBLE else View.GONE
 
             optionsButton.setOnClickListener {
@@ -48,14 +48,19 @@ class GroupMemberAdapter(
 
         private fun showOptionsMenu(user: User) {
             val popup = PopupMenu(itemView.context, optionsButton)
+
+            // Usuń użytkownika
             popup.menu.add("Usuń z grupy").setOnMenuItemClickListener {
                 onAction(user, "remove")
                 true
             }
+
+            // Mianuj adminem
             popup.menu.add("Mianuj adminem").setOnMenuItemClickListener {
                 onAction(user, "make_admin")
                 true
             }
+
             popup.show()
         }
     }

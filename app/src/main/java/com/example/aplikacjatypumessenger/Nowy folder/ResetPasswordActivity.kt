@@ -1,15 +1,22 @@
 package com.example.aplikacjatypumessenger
 
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
 import com.example.aplikacjatypumessenger.databinding.ActivityResetPasswordBinding
+import com.example.aplikacjatypumessenger.viewmodels.LoginViewModel
+import com.example.aplikacjatypumessenger.viewmodels.ResetPasswordState // DODAJ TEN IMPORT
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+
 class ResetPasswordActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityResetPasswordBinding
-    private val auth = Firebase.auth
+    private val viewModel: LoginViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -18,6 +25,31 @@ class ResetPasswordActivity : AppCompatActivity() {
 
         handleIntent(intent)
         setupClickListeners()
+        setupObservers() // ← DODAJ OBSERWATORÓW
+    }
+
+    private fun setupObservers() {
+        lifecycleScope.launch {
+            viewModel.resetPasswordState.collect { state ->
+                when (state) {
+                    is ResetPasswordState.Loading -> {
+                        binding.progressBar.visibility = View.VISIBLE
+                        binding.resetPasswordButton.isEnabled = false
+                    }
+                    is ResetPasswordState.Success -> {
+                        binding.progressBar.visibility = View.GONE
+                        binding.resetPasswordButton.isEnabled = true
+                        showSuccess("Hasło zostało zmienione pomyślnie")
+                    }
+                    is ResetPasswordState.Error -> {
+                        binding.progressBar.visibility = View.GONE
+                        binding.resetPasswordButton.isEnabled = true
+                        showError(state.message)
+                    }
+                    else -> {}
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -29,7 +61,6 @@ class ResetPasswordActivity : AppCompatActivity() {
         val data = intent.data
         if (data != null && data.scheme == "yourapp" && data.host == "resetpassword") {
             TODO()
-            // Możesz przetworzyć dodatkowe parametry z deep linku
         }
     }
 
@@ -39,7 +70,7 @@ class ResetPasswordActivity : AppCompatActivity() {
             val confirmPassword = binding.confirmPasswordEditText.text.toString()
 
             if (validatePasswords(newPassword, confirmPassword)) {
-                resetPassword(newPassword)
+                viewModel.resetPassword(newPassword) // ← WYWOŁAJ PRZEZ VIEWMODEL
             }
         }
 
@@ -63,23 +94,7 @@ class ResetPasswordActivity : AppCompatActivity() {
         return true
     }
 
-    private fun resetPassword(newPassword: String) {
-        val user = auth.currentUser
-        if (user != null) {
-            // Użytkownik jest zalogowany - zmiana hasła
-            user.updatePassword(newPassword)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        showSuccess("Hasło zostało zmienione pomyślnie")
-                    } else {
-                        showError("Błąd podczas zmiany hasła: ${task.exception?.message}")
-                    }
-                }
-        } else {
-            // Użytkownik nie jest zalogowany - wymagane ponowne uwierzytelnienie
-            showError("Wymagane ponowne logowanie do zmiany hasła")
-        }
-    }
+    // USUŃ STARĄ FUNKCJĘ resetPassword()
 
     private fun showSuccess(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()

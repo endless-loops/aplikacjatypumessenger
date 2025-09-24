@@ -3,24 +3,23 @@ package com.example.aplikacjatypumessenger
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.aplikacjatypumessenger.adapters.UserAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityCreateGroupBinding
-import com.example.aplikacjatypumessenger.models.Chat
-import com.example.aplikacjatypumessenger.models.User
-import com.google.firebase.auth.FirebaseAuth
+import com.example.aplikacjatypumessenger.viewmodels.ChatListViewModel
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
 
 class CreateGroupActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityCreateGroupBinding
-    private lateinit var auth: FirebaseAuth
-    private lateinit var db: FirebaseFirestore
+    private val viewModel: ChatListViewModel by viewModels()
     private lateinit var userAdapter: UserAdapter
-    private var userList = mutableListOf<User>()
+    private val auth = Firebase.auth
     private val selectedUsers = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,110 +27,101 @@ class CreateGroupActivity : AppCompatActivity() {
         binding = ActivityCreateGroupBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        auth = Firebase.auth
-        db = Firebase.firestore
-
-        setupViews()
-        loadUsers()
+        setupRecyclerView()
+        setupObservers()
         setupClickListeners()
     }
 
-    private fun setupViews() {
-        userAdapter = UserAdapter(userList) { user ->
-            toggleUserSelection(user)
+    private fun setupObservers() {
+        // ✅ UŻYJ ViewModel zamiast bezpośrednio Firestore
+        lifecycleScope.launch {
+            viewModel.users.collect { users ->
+                userAdapter.submitList(users)
+            }
+        }
+    }
+
+    private fun setupRecyclerView() {
+        userAdapter = UserAdapter { user ->
+            toggleUserSelection(user.id)
         }
 
         binding.usersRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@CreateGroupActivity)
             adapter = userAdapter
         }
+
+        // ✅ DODAJ WYSZUKIWANIE jak w MainActivity
+        binding.searchView.setOnQueryTextListener(object : androidx.appcompat.widget.SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?) = false
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                val query = newText?.trim()?.lowercase() ?: ""
+                val filteredUsers = viewModel.getFilteredUsers(query)
+                userAdapter.submitList(filteredUsers)
+                return true
+            }
+        })
     }
 
-    private fun toggleUserSelection(user: User) {
-        if (selectedUsers.contains(user.id)) {
-            selectedUsers.remove(user.id)
+    private fun toggleUserSelection(userId: String) {
+        if (selectedUsers.contains(userId)) {
+            selectedUsers.remove(userId)
         } else {
-            selectedUsers.add(user.id)
+            selectedUsers.add(userId)
         }
         updateSelectedCount()
+    }
+
+    private fun setupClickListeners() {
+        // ✅ DOSTOSUJ DO LAYOUTU Z TOOLBAR
+        binding.toolbar.setNavigationOnClickListener {
+            finish()
+        }
+
+        binding.createGroupButton.setOnClickListener {
+            createGroup()
+        }
+    }
+
+    private fun createGroup() {
+        val groupName = binding.groupNameEditText.text.toString().trim()
+
+        if (groupName.isEmpty()) {
+            showError("Wprowadź nazwę grupy")
+            return
+        }
+
+        if (selectedUsers.size < 2) {
+            showError("Wybierz przynajmniej 2 użytkowników")
+            return
+        }
+
+        // ✅ UŻYJ ViewModel zamiast bezpośrednio Firestore
+        viewModel.createGroup(
+            name = groupName,
+            participantIds = selectedUsers.toList(),
+            onSuccess = { groupId ->
+                Toast.makeText(this, "Grupa utworzona pomyślnie!", Toast.LENGTH_SHORT).show()
+
+                val intent = Intent(this, GroupChatActivity::class.java).apply {
+                    putExtra("groupId", groupId)
+                    putExtra("groupName", groupName)
+                }
+                startActivity(intent)
+                finish()
+            },
+            onError = { error ->
+                showError("Błąd tworzenia grupy: $error")
+            }
+        )
     }
 
     private fun updateSelectedCount() {
         binding.selectedCountText.text = "Wybrano: ${selectedUsers.size} użytkowników"
     }
 
-    private fun loadUsers() {
-        val currentUserId = auth.currentUser?.uid ?: return
-
-        db.collection("users")
-            .whereNotEqualTo("id", currentUserId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-
-                userList.clear()
-                snapshot?.documents?.forEach { document ->
-                    val user = document.toObject(User::class.java)
-                    user?.let { userList.add(it) }
-                }
-                userAdapter.notifyDataSetChanged()
-            }
-    }
-
-    private fun setupClickListeners() {
-        binding.createGroupButton.setOnClickListener {
-            val groupName = binding.groupNameEditText.text?.toString()?.trim()
-            if (groupName.isNullOrEmpty()) {
-                Toast.makeText(this, "Wpisz nazwę grupy", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (selectedUsers.size < 2) {
-                Toast.makeText(this, "Wybierz przynajmniej 2 osoby", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            createGroupChat(groupName)
-        }
-
-        binding.cancelButton.setOnClickListener {
-            finish()
-        }
-    }
-
-    private fun createGroupChat(groupName: String) {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val chatId = db.collection("chats").document().id
-
-        val participants = selectedUsers.toMutableList().apply {
-            add(currentUserId)  // Dodaj twórcę grupy
-        }
-
-        val chat = Chat(
-            id = chatId,
-            participants = participants,
-            isGroup = true,
-            groupName = groupName,
-            groupAdmin = currentUserId,
-            createdAt = System.currentTimeMillis()
-        )
-
-        db.collection("chats").document(chatId)
-            .set(chat)
-            .addOnSuccessListener {
-                Toast.makeText(this, "Grupa utworzona!", Toast.LENGTH_SHORT).show()
-                openGroupChat(chatId)
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Błąd tworzenia grupy", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    private fun openGroupChat(chatId: String) {
-        val intent = Intent(this, GroupChatActivity::class.java).apply {
-            putExtra("chatId", chatId)
-            putExtra("isGroup", true)
-        }
-        startActivity(intent)
-        finish()
+    private fun showError(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
     }
 }

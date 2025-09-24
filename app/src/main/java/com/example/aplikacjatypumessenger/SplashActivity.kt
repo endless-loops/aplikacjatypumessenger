@@ -22,11 +22,10 @@ class SplashActivity : AppCompatActivity() {
 
         auth = Firebase.auth
 
-        // Możesz ustawić animację logo, fade-in itp. tu, jeśli chcesz
         binding.logoImageView.alpha = 0f
         binding.logoImageView.animate().alpha(1f).setDuration(1000).start()
 
-        // Opóźnienie np. 2 sekundy przed przejściem
+        // Opóźnienie 2 sekundy przed przejściem
         Handler(Looper.getMainLooper()).postDelayed({
             navigateNext()
         }, 2000)
