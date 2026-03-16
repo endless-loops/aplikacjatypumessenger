@@ -2,6 +2,8 @@ package com.example.aplikacjatypumessenger
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -33,6 +35,18 @@ class MainActivity : AppCompatActivity() {
     // Cache nazw czatów: chatId -> nazwa
     private val chatNames = mutableMapOf<String, String>()
 
+    // Odświeżanie lastSeen co 2 minuty gdy app jest na pierwszym planie
+    private val heartbeatHandler = Handler(Looper.getMainLooper())
+    private val heartbeatRunnable = object : Runnable {
+        override fun run() {
+            auth.currentUser?.uid?.let { uid ->
+                db.collection("users").document(uid)
+                    .update("lastSeen", System.currentTimeMillis())
+            }
+            heartbeatHandler.postDelayed(this, 2 * 60 * 1000L)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -47,25 +61,27 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Aktualizuj status użytkownika na "online"
         auth.currentUser?.uid?.let { uid ->
             db.collection("users").document(uid)
                 .update("status", "online", "lastSeen", System.currentTimeMillis())
         }
+        heartbeatHandler.post(heartbeatRunnable)
     }
 
     override fun onPause() {
         super.onPause()
-        // Aktualizuj status użytkownika na "offline"
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
+        // lastSeen aktualizowane — status offline tylko przy wylogowaniu
         auth.currentUser?.uid?.let { uid ->
             db.collection("users").document(uid)
-                .update("status", "offline", "lastSeen", System.currentTimeMillis())
+                .update("lastSeen", System.currentTimeMillis())
         }
     }
 
     private fun setupAdapters() {
-        chatAdapter = ChatAdapter { chat -> openChat(chat) }
-        groupsAdapter = ChatAdapter { chat -> openChat(chat) }
+        val uid = auth.currentUser?.uid ?: ""
+        chatAdapter = ChatAdapter(uid) { chat -> openChat(chat) }
+        groupsAdapter = ChatAdapter(uid) { chat -> openChat(chat) }
         userAdapter = UserAdapter { user -> startChatWithUser(user) }
 
         binding.chatsRecyclerView.apply {
@@ -166,8 +182,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_chats -> showTab(Tab.CHATS)
                 R.id.nav_users -> showTab(Tab.USERS)
                 R.id.nav_profile -> {
-                    showTab(Tab.PROFILE)
                     loadProfileData()
+                    showTab(Tab.PROFILE)
                 }
                 R.id.navigation_groups -> showTab(Tab.GROUPS)
                 else -> false

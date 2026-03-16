@@ -1,9 +1,13 @@
 package com.example.aplikacjatypumessenger
 
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -123,6 +127,44 @@ class GroupChatActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.group_chat_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_group_info -> {
+                startActivity(
+                    Intent(this, GroupInfoActivity::class.java).apply {
+                        putExtra("groupId", groupId)
+                        putExtra("groupName", groupName)
+                    }
+                )
+                true
+            }
+            R.id.action_leave_group -> {
+                AlertDialog.Builder(this)
+                    .setTitle("Opuść grupę")
+                    .setMessage("Czy na pewno chcesz opuścić grupę \"$groupName\"?")
+                    .setPositiveButton("Opuść") { _, _ ->
+                        viewModel.leaveGroup(groupId) { success, error ->
+                            if (success) {
+                                Toast.makeText(this, "Opuściłeś grupę", Toast.LENGTH_SHORT).show()
+                                finish()
+                            } else {
+                                Toast.makeText(this, error ?: "Błąd", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                    .setNegativeButton("Anuluj", null)
+                    .show()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 

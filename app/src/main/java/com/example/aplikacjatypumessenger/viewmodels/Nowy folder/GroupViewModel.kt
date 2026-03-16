@@ -39,6 +39,30 @@ class GroupViewModel(
         }
     }
 
+    fun leaveGroup(groupId: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val result = groupRepository.leaveGroup(groupId)
+            onResult(result.isSuccess, result.exceptionOrNull()?.message)
+        }
+    }
+
+    fun removeMember(groupId: String, userId: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val result = groupRepository.removeUserFromGroup(groupId, userId)
+            onResult(result.isSuccess, result.exceptionOrNull()?.message)
+        }
+    }
+
+    fun getGroupMembers(
+        participantIds: List<String>,
+        onResult: (List<com.example.aplikacjatypumessenger.models.User>) -> Unit
+    ) {
+        viewModelScope.launch {
+            val users = groupRepository.getMemberUsers(participantIds)
+            onResult(users)
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         groupRepository.stopListening()

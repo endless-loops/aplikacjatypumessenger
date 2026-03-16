@@ -15,6 +15,7 @@ import java.util.Date
 import java.util.Locale
 
 class ChatAdapter(
+    private val currentUserId: String = "",
     private val onChatClick: (Chat) -> Unit
 ) : ListAdapter<Chat, ChatAdapter.ChatViewHolder>(ChatDiffCallback()) {
 
@@ -41,7 +42,17 @@ class ChatAdapter(
                 else -> "Czat"
             }
 
-            lastMessageTextView.text = chat.lastMessageText.ifEmpty { "Brak wiadomości" }
+            val rawText = chat.lastMessageText
+            lastMessageTextView.text = if (rawText.isEmpty()) {
+                "Brak wiadomości"
+            } else {
+                val senderId = chat.lastMessage?.get("senderId") as? String ?: ""
+                when {
+                    senderId == currentUserId -> "Ty: $rawText"
+                    chat.isGroup && senderId.isNotEmpty() -> rawText  // nazwa nadawcy jest w MessageAdapter
+                    else -> rawText
+                }
+            }
 
             timeTextView.text = if (chat.lastMessageTime > 0) {
                 formatChatTime(chat.lastMessageTime)

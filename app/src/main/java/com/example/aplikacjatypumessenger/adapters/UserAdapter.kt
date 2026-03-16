@@ -37,19 +37,21 @@ class UserAdapter(
         fun bind(user: User) {
             userNameText.text = user.username
 
-            when (user.status) {
-                "online" -> {
-                    userStatusText.text = "Online"
-                    statusIndicator.setColorFilter(
-                        ContextCompat.getColor(itemView.context, R.color.online_green)
-                    )
-                }
-                else -> {
-                    userStatusText.text = "Ostatnio: ${formatLastSeen(user.lastSeen)}"
-                    statusIndicator.setColorFilter(
-                        ContextCompat.getColor(itemView.context, R.color.offline_gray)
-                    )
-                }
+            // Użytkownik jest "online" tylko jeśli status="online" ORAZ
+            // lastSeen jest świeże (< 3 minuty) — chroni przed starymi/zapomnianymi statusami
+            val isRecentlyActive = (System.currentTimeMillis() - user.lastSeen) < 3 * 60 * 1000
+            val isOnline = user.status == "online" && isRecentlyActive
+
+            if (isOnline) {
+                userStatusText.text = "Online"
+                statusIndicator.setColorFilter(
+                    ContextCompat.getColor(itemView.context, R.color.online_green)
+                )
+            } else {
+                userStatusText.text = "Ostatnio: ${formatLastSeen(user.lastSeen)}"
+                statusIndicator.setColorFilter(
+                    ContextCompat.getColor(itemView.context, R.color.offline_gray)
+                )
             }
 
             itemView.setOnClickListener { onUserClick(user) }

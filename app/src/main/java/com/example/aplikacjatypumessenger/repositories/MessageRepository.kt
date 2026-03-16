@@ -37,9 +37,10 @@ class MessageRepository(
 
     fun startListeningForGroupMessages(groupId: String) {
         stopListening()
+        // Filtrujemy tylko po chatId — każdy czat ma unikalny ID,
+        // więc nie potrzebujemy drugiego filtra (który wymagałby composite index w Firestore)
         messageListener = db.collection("messages")
             .whereEqualTo("chatId", groupId)
-            .whereEqualTo("isGroupMessage", true)
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {

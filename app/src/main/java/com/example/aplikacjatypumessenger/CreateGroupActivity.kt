@@ -61,11 +61,11 @@ class CreateGroupActivity : AppCompatActivity() {
 
     private fun updateCreateButtonState(selectedCount: Int) {
         binding.selectedCountText.text = when (selectedCount) {
-            0 -> "Nie wybrano żadnych użytkowników"
-            1 -> "Wybrano: 1 użytkownik (wymagane min. 2)"
+            0 -> "Wybierz przynajmniej 1 użytkownika"
+            1 -> "Wybrano: 1 użytkownik"
             else -> "Wybrano: $selectedCount użytkowników"
         }
-        binding.createGroupButton.isEnabled = selectedCount >= 2
+        binding.createGroupButton.isEnabled = selectedCount >= 1
     }
 
     private fun setupClickListeners() {
@@ -84,8 +84,8 @@ class CreateGroupActivity : AppCompatActivity() {
         }
 
         val selectedIds = userAdapter.getSelectedIds()
-        if (selectedIds.size < 2) {
-            Toast.makeText(this, "Wybierz przynajmniej 2 użytkowników", Toast.LENGTH_SHORT).show()
+        if (selectedIds.isEmpty()) {
+            Toast.makeText(this, "Wybierz przynajmniej 1 użytkownika", Toast.LENGTH_SHORT).show()
             return
         }
 

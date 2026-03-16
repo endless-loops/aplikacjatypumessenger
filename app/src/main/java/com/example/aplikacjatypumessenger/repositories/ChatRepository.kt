@@ -34,8 +34,27 @@ class ChatRepository(
                     Log.e("ChatRepository", "Error listening to chats", error)
                     return@addSnapshotListener
                 }
+                // Ręczna deserializacja zamiast toObject() — Kotlin data class z val
+                // nie ma setterów, więc Firestore reflection nie może ustawić pól.
                 _chats.value = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Chat::class.java)
+                    try {
+                        Chat(
+                            id = doc.id,
+                            participants = (doc.get("participants") as? List<*>)
+                                ?.filterIsInstance<String>() ?: emptyList(),
+                            isGroup = doc.getBoolean("isGroup")
+                                ?: doc.getBoolean("group") ?: false,
+                            groupName = doc.getString("groupName") ?: "",
+                            groupAdmin = doc.getString("groupAdmin") ?: "",
+                            lastMessage = @Suppress("UNCHECKED_CAST")
+                            (doc.get("lastMessage") as? Map<String, Any>),
+                            lastMessageTime = doc.getLong("lastMessageTime") ?: 0L,
+                            createdAt = doc.getLong("createdAt") ?: 0L
+                        )
+                    } catch (e: Exception) {
+                        Log.w("ChatRepository", "Failed to parse chat ${doc.id}", e)
+                        null
+                    }
                 } ?: emptyList()
             }
 

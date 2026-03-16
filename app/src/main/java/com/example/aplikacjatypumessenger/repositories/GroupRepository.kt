@@ -132,6 +132,42 @@ class GroupRepository(
         }
     }
 
+    suspend fun leaveGroup(groupId: String): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: throw Exception("User not logged in")
+            val group = getGroupDetails(groupId) ?: throw Exception("Grupa nie istnieje")
+            if (group.adminId == currentUserId) {
+                return Result.failure(Exception("Administrator nie może opuścić grupy. Najpierw przekaż rolę admina innemu członkowi."))
+            }
+            db.collection("chats").document(groupId)
+                .update("participants", com.google.firebase.firestore.FieldValue.arrayRemove(currentUserId))
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMemberUsers(participantIds: List<String>): List<com.example.aplikacjatypumessenger.models.User> {
+        return try {
+            participantIds.mapNotNull { userId ->
+                val doc = db.collection("users").document(userId).get().await()
+                if (doc.exists()) {
+                    com.example.aplikacjatypumessenger.models.User(
+                        id = doc.id,
+                        username = doc.getString("username") ?: "",
+                        email = doc.getString("email") ?: "",
+                        status = doc.getString("status") ?: "offline",
+                        lastSeen = doc.getLong("lastSeen") ?: 0L
+                    )
+                } else null
+            }
+        } catch (e: Exception) {
+            Log.w("GroupRepository", "getMemberUsers failed", e)
+            emptyList()
+        }
+    }
+
     fun stopListening() {
         groupsListener?.remove()
         groupsListener = null

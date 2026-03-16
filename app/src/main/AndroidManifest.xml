@@ -33,8 +33,8 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".GroupManagementActivity"
-            android:exported="true" />
+            android:name=".GroupInfoActivity"
+            android:exported="false" />
 
         <activity
             android:name=".GroupChatActivity"
@@ -49,19 +49,6 @@
         <activity android:name=".RegisterActivity" />
         <activity android:name=".MainActivity" />
         <activity android:name=".ChatActivity" />
-        <activity
-            android:name=".ResetPasswordActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:host="resetpassword"
-                    android:scheme="yourapp" />
-            </intent-filter>
-        </activity>
-
         <service
             android:name=".services.MessagingService"
             android:exported="false">

@@ -43,19 +43,19 @@ class SelectableUserAdapter(
         fun bind(user: User) {
             userNameText.text = user.username
 
-            when (user.status) {
-                "online" -> {
-                    userStatusText.text = "Online"
-                    statusIndicator.setColorFilter(
-                        ContextCompat.getColor(itemView.context, R.color.online_green)
-                    )
-                }
-                else -> {
-                    userStatusText.text = formatLastSeen(user.lastSeen)
-                    statusIndicator.setColorFilter(
-                        ContextCompat.getColor(itemView.context, R.color.offline_gray)
-                    )
-                }
+            val isRecentlyActive = (System.currentTimeMillis() - user.lastSeen) < 3 * 60 * 1000
+            val isOnline = user.status == "online" && isRecentlyActive
+
+            if (isOnline) {
+                userStatusText.text = "Online"
+                statusIndicator.setColorFilter(
+                    ContextCompat.getColor(itemView.context, R.color.online_green)
+                )
+            } else {
+                userStatusText.text = formatLastSeen(user.lastSeen)
+                statusIndicator.setColorFilter(
+                    ContextCompat.getColor(itemView.context, R.color.offline_gray)
+                )
             }
 
             checkBox.isChecked = selectedIds.contains(user.id)
