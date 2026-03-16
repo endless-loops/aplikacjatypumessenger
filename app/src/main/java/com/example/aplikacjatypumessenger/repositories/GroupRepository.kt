@@ -1,7 +1,6 @@
-// app/src/main/java/com/example/aplikacjatypumessenger/repositories/GroupRepository.kt
-
 package com.example.aplikacjatypumessenger.repositories
 
+import android.util.Log
 import com.example.aplikacjatypumessenger.models.Group
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -19,29 +18,40 @@ class GroupRepository(
     private val _groups = MutableStateFlow<List<Group>>(emptyList())
     val groups: StateFlow<List<Group>> = _groups
 
-    // Pobierz grupy użytkownika w czasie rzeczywistym
+    /**
+     * Nasłuchuje grup użytkownika w czasie rzeczywistym.
+     * Grupy są przechowywane w kolekcji "chats" z polem isGroup=true.
+     * UWAGA: Firestore nie obsługuje jednocześnie whereEqualTo + whereArrayContains na różnych polach
+     * bez composite index, więc filtrujemy isGroup po stronie klienta.
+     */
     fun startListeningForUserGroups() {
         val currentUserId = auth.currentUser?.uid ?: return
 
         groupsListener = db.collection("chats")
-            .whereEqualTo("group", true)
             .whereArrayContains("participants", currentUserId)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
+                if (error != null) {
+                    Log.e("GroupRepository", "Error listening to groups", error)
+                    return@addSnapshotListener
+                }
 
                 val tempGroups = mutableListOf<Group>()
                 snapshot?.documents?.forEach { doc ->
-                    val groupName = doc.getString("groupName") ?: ""
-                    val participants = doc.get("participants") as? List<String> ?: emptyList()
-                    val adminId = doc.getString("groupAdmin") ?: ""
-                    val createdAt = doc.getLong("createdAt") ?: 0L
+                    // Sprawdzaj zarówno "isGroup" jak i starsze pole "group" dla kompatybilności
+                    val isGroup = doc.getBoolean("isGroup")
+                        ?: doc.getBoolean("group")
+                        ?: false
+                    if (!isGroup) return@forEach
 
                     val group = Group(
                         id = doc.id,
-                        name = groupName,
-                        adminId = adminId,
-                        participantIds = participants,
-                        createdAt = createdAt
+                        name = doc.getString("groupName") ?: "",
+                        adminId = doc.getString("groupAdmin") ?: "",
+                        participantIds = (doc.get("participants") as? List<*>)
+                            ?.filterIsInstance<String>() ?: emptyList(),
+                        createdAt = doc.getLong("createdAt") ?: 0L,
+                        description = doc.getString("description") ?: "",
+                        groupImage = doc.getString("groupImage") ?: ""
                     )
                     tempGroups.add(group)
                 }
@@ -49,23 +59,24 @@ class GroupRepository(
             }
     }
 
-    // Utwórz nową grupę
     suspend fun createGroup(name: String, participantIds: List<String>): Result<String> {
         return try {
             val currentUserId = auth.currentUser?.uid ?: throw Exception("User not logged in")
             val groupId = db.collection("chats").document().id
-
             val allParticipants = (participantIds + currentUserId).distinct()
 
             val groupData = hashMapOf(
                 "id" to groupId,
                 "groupName" to name,
-                "group" to true,
+                "isGroup" to true,          // Używamy isGroup (spójne z modelem Chat)
+                "group" to true,            // Zachowujemy też stare pole dla kompatybilności
                 "groupAdmin" to currentUserId,
                 "participants" to allParticipants,
                 "createdAt" to System.currentTimeMillis(),
                 "lastMessage" to mapOf<String, Any>(),
-                "lastMessageTime" to 0L
+                "lastMessageTime" to 0L,
+                "description" to "",
+                "groupImage" to ""
             )
 
             db.collection("chats").document(groupId).set(groupData).await()
@@ -75,28 +86,25 @@ class GroupRepository(
         }
     }
 
-    // Pobierz szczegóły grupy
     suspend fun getGroupDetails(groupId: String): Group? {
         return try {
             val doc = db.collection("chats").document(groupId).get().await()
-            val groupName = doc.getString("groupName") ?: ""
-            val participants = doc.get("participants") as? List<String> ?: emptyList()
-            val adminId = doc.getString("groupAdmin") ?: ""
-            val createdAt = doc.getLong("createdAt") ?: 0L
-
             Group(
                 id = doc.id,
-                name = groupName,
-                adminId = adminId,
-                participantIds = participants,
-                createdAt = createdAt
+                name = doc.getString("groupName") ?: "",
+                adminId = doc.getString("groupAdmin") ?: "",
+                participantIds = (doc.get("participants") as? List<*>)
+                    ?.filterIsInstance<String>() ?: emptyList(),
+                createdAt = doc.getLong("createdAt") ?: 0L,
+                description = doc.getString("description") ?: "",
+                groupImage = doc.getString("groupImage") ?: ""
             )
         } catch (e: Exception) {
+            Log.w("GroupRepository", "getGroupDetails failed", e)
             null
         }
     }
 
-    // Dodaj użytkownika do grupy
     suspend fun addUserToGroup(groupId: String, userId: String): Result<Unit> {
         return try {
             db.collection("chats").document(groupId)
@@ -108,10 +116,13 @@ class GroupRepository(
         }
     }
 
-
-    // Usuń użytkownika z grupy
     suspend fun removeUserFromGroup(groupId: String, userId: String): Result<Unit> {
         return try {
+            // Sprawdź czy użytkownik jest adminem przed usunięciem
+            val group = getGroupDetails(groupId)
+            if (group?.adminId == userId) {
+                return Result.failure(Exception("Nie można usunąć administratora grupy"))
+            }
             db.collection("chats").document(groupId)
                 .update("participants", com.google.firebase.firestore.FieldValue.arrayRemove(userId))
                 .await()

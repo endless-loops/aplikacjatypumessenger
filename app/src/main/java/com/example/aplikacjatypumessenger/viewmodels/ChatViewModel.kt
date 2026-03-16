@@ -1,5 +1,3 @@
-// app/src/main/java/com/example/aplikacjatypumessenger/viewmodels/ChatViewModel.kt
-
 package com.example.aplikacjatypumessenger.viewmodels
 
 import androidx.lifecycle.ViewModel
@@ -26,9 +24,15 @@ class ChatViewModel(
         }
     }
 
-    fun markMessagesAsRead(chatId: String, userId: String) {
+    fun markMessagesAsRead(chatId: String, senderId: String) {
         viewModelScope.launch {
-            messageRepository.markMessagesAsRead(chatId, userId)
+            messageRepository.markMessagesAsRead(chatId, senderId)
+        }
+    }
+
+    fun markMessagesAsDelivered(chatId: String, senderId: String) {
+        viewModelScope.launch {
+            messageRepository.markMessagesAsDelivered(chatId, senderId)
         }
     }
 

@@ -1,13 +1,11 @@
-// app/src/main/java/com/example/aplikacjatypumessenger/repositories/ChatRepository.kt
-
 package com.example.aplikacjatypumessenger.repositories
 
+import android.util.Log
 import com.example.aplikacjatypumessenger.models.Chat
 import com.example.aplikacjatypumessenger.models.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.tasks.await
@@ -25,38 +23,38 @@ class ChatRepository(
     private val _users = MutableStateFlow<List<User>>(emptyList())
     val users: StateFlow<List<User>> = _users
 
-    // Ładuje czaty i użytkowników w czasie rzeczywistym
     fun startListeningForChatsAndUsers() {
         val currentUserId = auth.currentUser?.uid ?: return
 
-        // Słuchacz czatów
+        // Nasłuchuj czatów w których jest obecny użytkownik (1:1 i grupy)
         chatsListener = db.collection("chats")
             .whereArrayContains("participants", currentUserId)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-
-                val tempChats = mutableListOf<Chat>()
-                snapshot?.documents?.forEach { doc ->
-                    val chat = doc.toObject(Chat::class.java) ?: return@forEach
-                    tempChats.add(chat)
+                if (error != null) {
+                    Log.e("ChatRepository", "Error listening to chats", error)
+                    return@addSnapshotListener
                 }
-                _chats.value = tempChats
+                _chats.value = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Chat::class.java)
+                } ?: emptyList()
             }
 
-        // Słuchacz użytkowników
+        // Nasłuchuj wszystkich użytkowników — filtruj bieżącego po stronie klienta
+        // (whereNotEqualTo wymaga composite index i nie filtruje po id dokumentu poprawnie)
         usersListener = db.collection("users")
-            .whereNotEqualTo("id", currentUserId)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-
-                val tempUsers = snapshot?.documents?.mapNotNull {
-                    it.toObject(User::class.java)
-                } ?: emptyList()
-                _users.value = tempUsers.distinctBy { it.id }
+                if (error != null) {
+                    Log.e("ChatRepository", "Error listening to users", error)
+                    return@addSnapshotListener
+                }
+                _users.value = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(User::class.java)
+                }?.filter { it.id != currentUserId }   // Filtruj po stronie klienta
+                    ?.distinctBy { it.id }
+                    ?: emptyList()
             }
     }
 
-    // Tworzy prywatny czat
     suspend fun createPrivateChat(otherUserId: String): String {
         val currentUserId = auth.currentUser?.uid ?: throw Exception("User not logged in")
         val chatId = db.collection("chats").document().id
@@ -64,25 +62,31 @@ class ChatRepository(
         val chat = Chat(
             id = chatId,
             participants = listOf(currentUserId, otherUserId),
-            isGroup = false
+            isGroup = false,
+            createdAt = System.currentTimeMillis()
         )
 
         db.collection("chats").document(chatId).set(chat).await()
         return chatId
     }
 
-    // Zwraca nazwę czatu (dla czatów 1:1)
     suspend fun getChatName(chat: Chat): String {
         val currentUserId = auth.currentUser?.uid ?: return "Czat"
         if (chat.isGroup) return chat.groupName
 
-        val otherUserId = chat.participants.first { it != currentUserId }
-        val userDoc = db.collection("users").document(otherUserId).get().await()
-        return userDoc.toObject(User::class.java)?.username ?: "Użytkownik"
+        val otherUserId = chat.participants.firstOrNull { it != currentUserId } ?: return "Czat"
+        return try {
+            val userDoc = db.collection("users").document(otherUserId).get().await()
+            userDoc.getString("username") ?: "Użytkownik"
+        } catch (e: Exception) {
+            "Użytkownik"
+        }
     }
 
     fun stopListening() {
         chatsListener?.remove()
+        chatsListener = null
         usersListener?.remove()
+        usersListener = null
     }
 }

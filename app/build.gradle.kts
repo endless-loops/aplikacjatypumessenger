@@ -19,12 +19,17 @@ android {
     }
 
     buildTypes {
-        release {
+        debug {
             isMinifyEnabled = false
+        }
+        release {
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // signingConfig dla release skonfiguruj osobno przez Android Studio:
+            // Build > Generate Signed Bundle / APK
         }
     }
     compileOptions {

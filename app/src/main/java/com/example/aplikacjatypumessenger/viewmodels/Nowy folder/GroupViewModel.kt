@@ -1,10 +1,9 @@
-// app/src/main/java/com/example/aplikacjatypumessenger/viewmodels/GroupViewModel.kt
-
 package com.example.aplikacjatypumessenger.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.aplikacjatypumessenger.models.Group
+import com.example.aplikacjatypumessenger.models.Message
 import com.example.aplikacjatypumessenger.repositories.GroupRepository
 import com.example.aplikacjatypumessenger.repositories.MessageRepository
 import kotlinx.coroutines.flow.StateFlow
@@ -16,18 +15,10 @@ class GroupViewModel(
 ) : ViewModel() {
 
     val groups: StateFlow<List<Group>> = groupRepository.groups
-    val messages: StateFlow<List<com.example.aplikacjatypumessenger.models.Message>> = messageRepository.messages
+    val messages: StateFlow<List<Message>> = messageRepository.messages
 
-    // Grupy
     fun startListeningForUserGroups() {
         groupRepository.startListeningForUserGroups()
-    }
-
-    fun createGroup(name: String, participantIds: List<String>, onResult: (Boolean, String?) -> Unit) {
-        viewModelScope.launch {
-            val result = groupRepository.createGroup(name, participantIds)
-            onResult(result.isSuccess, result.exceptionOrNull()?.message)
-        }
     }
 
     fun getGroupDetails(groupId: String, onResult: (Group?) -> Unit) {
@@ -37,7 +28,6 @@ class GroupViewModel(
         }
     }
 
-    // Wiadomości grupowe
     fun startListeningForGroupMessages(groupId: String) {
         messageRepository.startListeningForGroupMessages(groupId)
     }
@@ -49,7 +39,7 @@ class GroupViewModel(
         }
     }
 
-    public override fun onCleared() {
+    override fun onCleared() {
         super.onCleared()
         groupRepository.stopListening()
         messageRepository.stopListening()

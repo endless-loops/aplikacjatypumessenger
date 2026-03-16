@@ -1,7 +1,6 @@
-// app/src/main/java/com/example/aplikacjatypumessenger/GroupChatActivity.kt
-
 package com.example.aplikacjatypumessenger
 
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -12,7 +11,6 @@ import com.example.aplikacjatypumessenger.adapters.MessageAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityChatBinding
 import com.example.aplikacjatypumessenger.viewmodels.GroupViewModel
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
 
@@ -21,9 +19,9 @@ class GroupChatActivity : AppCompatActivity() {
     private lateinit var binding: ActivityChatBinding
     private val viewModel: GroupViewModel by viewModels()
     private lateinit var messageAdapter: MessageAdapter
+    private lateinit var sharedPrefs: SharedPreferences
 
     private val auth = Firebase.auth
-    private val db = Firebase.firestore
 
     private var groupId = ""
     private var groupName = ""
@@ -34,12 +32,16 @@ class GroupChatActivity : AppCompatActivity() {
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.setDisplayShowTitleEnabled(false) // ✅ Wyłącz domyślny tytuł
+        supportActionBar?.setDisplayShowTitleEnabled(false)
 
-        binding.toolbar.setNavigationOnClickListener {
-            finish()
-        }
-        groupId = intent.getStringExtra("groupId") ?: ""
+        sharedPrefs = getSharedPreferences("chat_prefs", MODE_PRIVATE)
+
+        binding.toolbar.setNavigationOnClickListener { finish() }
+
+        // Obsługuj zarówno "groupId" (z CreateGroupActivity) jak i "chatId" (z MainActivity)
+        groupId = intent.getStringExtra("groupId")
+            ?: intent.getStringExtra("chatId")
+            ?: ""
         groupName = intent.getStringExtra("groupName") ?: ""
 
         if (groupId.isEmpty()) {
@@ -62,29 +64,30 @@ class GroupChatActivity : AppCompatActivity() {
         viewModel.startListeningForGroupMessages(groupId)
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Informuj MessagingService że użytkownik jest w tym czacie — blokuj powiadomienia
+        sharedPrefs.edit().putString("current_chat_id", groupId).apply()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Wyczyść — powiadomienia znów mogą się pokazywać
+        sharedPrefs.edit().putString("current_chat_id", "").apply()
+    }
+
     private fun setupObservers() {
         lifecycleScope.launch {
             viewModel.messages.collect { messages ->
                 messageAdapter.updateList(messages)
                 scrollToBottomIfNeeded()
-
-                // Oznacz wiadomości jako przeczytane
-                val currentUserId = auth.currentUser?.uid ?: ""
-                messages.forEach { message ->
-                    if (message.senderId != currentUserId && !message.seen) {
-                        // Dla grup oznaczamy jako przeczytane lokalnie
-                        // (pełna implementacja wymagałaby śledzenia przez kogo zostały przeczytane)
-                    }
-                }
             }
         }
     }
 
     private fun setupViews() {
         val currentUserId = auth.currentUser?.uid ?: ""
-
-        // ✅ POPRAWIONE: true = jest grupowy
-        messageAdapter = MessageAdapter(currentUserId, true) // true = jest grupowy
+        messageAdapter = MessageAdapter(currentUserId, true)
 
         binding.messagesRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@GroupChatActivity).also {
@@ -97,49 +100,49 @@ class GroupChatActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
+        binding.sendButton.isEnabled = false
+
+        binding.messageEditText.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                binding.sendButton.isEnabled = !s.isNullOrBlank()
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
         binding.sendButton.setOnClickListener {
             val text = binding.messageEditText.text?.toString()?.trim()
             if (!text.isNullOrEmpty()) {
+                binding.sendButton.isEnabled = false
                 viewModel.sendGroupMessage(groupId, text) { success, error ->
                     if (success) {
                         binding.messageEditText.text?.clear()
                     } else {
+                        binding.sendButton.isEnabled = true
                         showError("Błąd wysyłania: $error")
                     }
                 }
             }
         }
-
-        //binding.backButton.setOnClickListener { finish() }
     }
 
     private fun loadGroupInfo() {
-        if (groupId.isNotEmpty()) {
-            viewModel.getGroupDetails(groupId) { group ->
-                group?.let {
-                    binding.chatUserNameTextView.text = it.name
-                    groupName = it.name
-                } ?: run {
-                    // Fallback: spróbuj pobrać z Firestore bezpośrednio
-                    db.collection("chats").document(groupId)
-                        .get()
-                        .addOnSuccessListener { doc ->
-                            val name = doc.getString("groupName") ?: "Grupa"
-                            binding.chatUserNameTextView.text = name
-                            groupName = name
-                        }
-                }
+        if (groupName.isNotEmpty()) {
+            binding.chatUserNameTextView.text = groupName
+            return
+        }
+        viewModel.getGroupDetails(groupId) { group ->
+            group?.let {
+                binding.chatUserNameTextView.text = it.name
+                groupName = it.name
             }
         }
     }
 
     private fun scrollToBottomIfNeeded() {
         binding.messagesRecyclerView.post {
-            val layoutManager = binding.messagesRecyclerView.layoutManager as? LinearLayoutManager
-            val lastVisible = layoutManager?.findLastVisibleItemPosition() ?: -1
             val itemCount = messageAdapter.itemCount
-
-            if (lastVisible >= itemCount - 2) {
+            if (itemCount > 0) {
                 binding.messagesRecyclerView.scrollToPosition(itemCount - 1)
             }
         }
@@ -147,10 +150,5 @@ class GroupChatActivity : AppCompatActivity() {
 
     private fun showError(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        viewModel.onCleared()
     }
 }

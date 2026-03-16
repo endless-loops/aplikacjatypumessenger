@@ -4,19 +4,19 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.aplikacjatypumessenger.R
 import com.example.aplikacjatypumessenger.models.Chat
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class ChatAdapter(
-    private var chats: List<Chat>,
     private val onChatClick: (Chat) -> Unit
-) : RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
-
-    fun updateList(newChats: List<Chat>) {
-        this.chats = newChats
-        notifyDataSetChanged()
-    }
+) : ListAdapter<Chat, ChatAdapter.ChatViewHolder>(ChatDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -25,20 +25,74 @@ class ChatAdapter(
     }
 
     override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
-        holder.bind(chats[position])
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount() = chats.size
 
     inner class ChatViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val chatNameTextView: TextView = itemView.findViewById(R.id.chatNameTextView)
+        private val lastMessageTextView: TextView = itemView.findViewById(R.id.lastMessageTextView)
+        private val timeTextView: TextView = itemView.findViewById(R.id.timeTextView)
+
         fun bind(chat: Chat) {
-            itemView.findViewById<TextView>(R.id.chatNameTextView).text = "Chat ${chat.chatName.take(8)}"
-            itemView.findViewById<TextView>(R.id.lastMessageTextView).text = 
-                chat.lastMessage?.text ?: "Brak wiadomości"
-            
-            itemView.setOnClickListener {
-                onChatClick(chat)
+            // Wyświetl pełną nazwę (chatName dla 1:1, groupName dla grup)
+            chatNameTextView.text = when {
+                chat.isGroup -> chat.groupName.ifEmpty { "Grupa" }
+                chat.chatName.isNotEmpty() -> chat.chatName
+                else -> "Czat"
+            }
+
+            lastMessageTextView.text = chat.lastMessageText.ifEmpty { "Brak wiadomości" }
+
+            timeTextView.text = if (chat.lastMessageTime > 0) {
+                formatChatTime(chat.lastMessageTime)
+            } else {
+                ""
+            }
+
+            itemView.setOnClickListener { onChatClick(chat) }
+        }
+
+        private fun formatChatTime(timestamp: Long): String {
+            val now = Calendar.getInstance()
+            val msgCal = Calendar.getInstance().apply { timeInMillis = timestamp }
+
+            return when {
+                isSameDay(now, msgCal) ->
+                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
+                isYesterday(now, msgCal) ->
+                    "Wczoraj"
+                isSameYear(now, msgCal) ->
+                    SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(timestamp))
+                else ->
+                    SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(Date(timestamp))
             }
         }
+
+        private fun isSameDay(a: Calendar, b: Calendar): Boolean =
+            a.get(Calendar.YEAR) == b.get(Calendar.YEAR) &&
+                    a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
+
+        private fun isYesterday(today: Calendar, other: Calendar): Boolean {
+            val yesterday = Calendar.getInstance().apply {
+                timeInMillis = today.timeInMillis
+                add(Calendar.DAY_OF_YEAR, -1)
+            }
+            return isSameDay(yesterday, other)
+        }
+
+        private fun isSameYear(a: Calendar, b: Calendar): Boolean =
+            a.get(Calendar.YEAR) == b.get(Calendar.YEAR)
     }
+}
+
+class ChatDiffCallback : DiffUtil.ItemCallback<Chat>() {
+    override fun areItemsTheSame(oldItem: Chat, newItem: Chat): Boolean =
+        oldItem.id == newItem.id
+
+    override fun areContentsTheSame(oldItem: Chat, newItem: Chat): Boolean =
+        oldItem.id == newItem.id &&
+                oldItem.chatName == newItem.chatName &&
+                oldItem.groupName == newItem.groupName &&
+                oldItem.lastMessageText == newItem.lastMessageText &&
+                oldItem.lastMessageTime == newItem.lastMessageTime
 }
