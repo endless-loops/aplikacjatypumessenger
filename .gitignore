@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Klucze i sekrety - nigdy nie commitować
+app/*.json
+!app/google-services.json
