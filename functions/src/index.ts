@@ -12,7 +12,6 @@ export const onNewPrivateMessage = functions.firestore.onDocumentCreated(
     const message = event.data?.data();
     if (!message) return;
 
-    // Pomijamy wiadomości grupowe
     if (message.isGroupMessage === true) return;
 
     const senderId: string = message.senderId;
@@ -22,7 +21,6 @@ export const onNewPrivateMessage = functions.firestore.onDocumentCreated(
 
     if (!receiverId || !senderId || !chatId) return;
 
-    // Pobierz nadawcę i odbiorcę równolegle
     const [senderDoc, receiverDoc] = await Promise.all([
       db.collection("users").doc(senderId).get(),
       db.collection("users").doc(receiverId).get(),
@@ -32,26 +30,21 @@ export const onNewPrivateMessage = functions.firestore.onDocumentCreated(
     if (!fcmToken) return;
 
     const senderName: string = senderDoc.data()?.name ?? "Nowa wiadomość";
+    const bodyText = text.length > 100 ? text.substring(0, 97) + "..." : text;
 
+    // Tylko pole "data" — MessagingService sam wyświetla powiadomienie
+    // i buduje prawidłowy Intent do ChatActivity
     await messaging.send({
       token: fcmToken,
-      notification: {
-        title: senderName,
-        body: text.length > 100 ? text.substring(0, 97) + "..." : text,
-      },
       data: {
         chatId,
         senderId,
         senderName,
-        body: text,
+        body: bodyText,
         type: "private",
       },
       android: {
         priority: "high",
-        notification: {
-          channelId: "chat_notifications",
-          clickAction: "OPEN_CHAT",
-        },
       },
     });
   }
@@ -64,7 +57,6 @@ export const onNewGroupMessage = functions.firestore.onDocumentCreated(
     const message = event.data?.data();
     if (!message) return;
 
-    // Obsługujemy tylko wiadomości grupowe
     if (message.isGroupMessage !== true) return;
 
     const senderId: string = message.senderId;
@@ -73,7 +65,6 @@ export const onNewGroupMessage = functions.firestore.onDocumentCreated(
 
     if (!senderId || !groupId) return;
 
-    // Pobierz grupę i nadawcę równolegle
     const [groupDoc, senderDoc] = await Promise.all([
       db.collection("chats").doc(groupId).get(),
       db.collection("users").doc(senderId).get(),
@@ -84,8 +75,8 @@ export const onNewGroupMessage = functions.firestore.onDocumentCreated(
     const members: string[] = groupDoc.data()?.members ?? [];
     const groupName: string = groupDoc.data()?.name ?? "Czat grupowy";
     const senderName: string = senderDoc.data()?.name ?? "Ktoś";
+    const bodyText = `${senderName}: ${text.length > 80 ? text.substring(0, 77) + "..." : text}`;
 
-    // Zbierz tokeny wszystkich członków oprócz nadawcy
     const memberDocs = await Promise.all(
       members
         .filter((uid) => uid !== senderId)
@@ -98,30 +89,21 @@ export const onNewGroupMessage = functions.firestore.onDocumentCreated(
 
     if (tokens.length === 0) return;
 
-    // Wysyłamy do wszystkich tokenów (max 500 naraz — FCM limit)
     const chunks = chunkArray(tokens, 500);
     await Promise.all(
       chunks.map((chunk) =>
         messaging.sendEachForMulticast({
           tokens: chunk,
-          notification: {
-            title: groupName,
-            body: `${senderName}: ${text.length > 80 ? text.substring(0, 77) + "..." : text}`,
-          },
           data: {
             chatId: groupId,
             senderId,
             senderName,
             groupName,
-            body: text,
+            body: bodyText,
             type: "group",
           },
           android: {
             priority: "high",
-            notification: {
-              channelId: "chat_notifications",
-              clickAction: "OPEN_GROUP_CHAT",
-            },
           },
         })
       )
