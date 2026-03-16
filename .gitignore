@@ -17,3 +17,5 @@ local.properties
 # Klucze i sekrety - nigdy nie commitować
 app/*.json
 !app/google-services.json
+functions/node_modules/
+functions/lib/
