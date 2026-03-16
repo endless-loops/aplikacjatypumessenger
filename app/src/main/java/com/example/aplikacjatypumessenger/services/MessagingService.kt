@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.aplikacjatypumessenger.ChatActivity
+import com.example.aplikacjatypumessenger.GroupChatActivity
 import com.example.aplikacjatypumessenger.MainActivity
 import com.example.aplikacjatypumessenger.R
 import com.google.firebase.auth.FirebaseAuth
@@ -91,17 +92,27 @@ class MessagingService : FirebaseMessagingService() {
 
     private fun createNotificationIntent(data: Map<String, String>): Intent {
         val chatId = data["chatId"]
-        val otherUserId = data["senderId"]
+        val senderId = data["senderId"]
+        val type = data["type"] // "private" lub "group"
 
-        return if (!chatId.isNullOrEmpty() && !otherUserId.isNullOrEmpty()) {
-            Intent(this, ChatActivity::class.java).apply {
-                putExtra("chatId", chatId)
-                putExtra("otherUserId", otherUserId)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        return when {
+            type == "group" && !chatId.isNullOrEmpty() -> {
+                Intent(this, GroupChatActivity::class.java).apply {
+                    putExtra("groupId", chatId)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
             }
-        } else {
-            Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            !chatId.isNullOrEmpty() && !senderId.isNullOrEmpty() -> {
+                Intent(this, ChatActivity::class.java).apply {
+                    putExtra("chatId", chatId)
+                    putExtra("otherUserId", senderId)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+            }
+            else -> {
+                Intent(this, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
             }
         }
     }
