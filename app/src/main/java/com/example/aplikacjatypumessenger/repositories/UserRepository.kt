@@ -15,16 +15,26 @@ class UserRepository(private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 
     suspend fun loginUser(email: String, password: String): Result<Boolean> {
         return try {
-            // Timeout 10 sekund z Coroutines (lepsze niż Handler)
             withTimeout(10000L) {
                 auth.signInWithEmailAndPassword(email, password).await()
-                Result.success(true)
             }
+            // Zaktualizuj FCM token po każdym logowaniu
+            refreshFcmToken()
+            Result.success(true)
         } catch (e: TimeoutCancellationException) {
             Result.failure(TimeoutException("Logowanie zajmuje zbyt długo. Sprawdź połączenie z internetem."))
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun refreshFcmToken() {
+        try {
+            val uid = auth.currentUser?.uid ?: return
+            val token = FirebaseMessaging.getInstance().token.await()
+            Firebase.firestore.collection("users").document(uid)
+                .update("fcmToken", token).await()
+        } catch (_: Exception) { }
     }
 
     suspend fun registerUser(email: String, password: String, username: String): Result<Boolean> {
