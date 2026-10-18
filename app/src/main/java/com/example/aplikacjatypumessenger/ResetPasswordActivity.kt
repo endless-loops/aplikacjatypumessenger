@@ -6,6 +6,7 @@ import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.example.aplikacjatypumessenger.databinding.ActivityResetPasswordBinding
+import com.example.aplikacjatypumessenger.utils.applySystemBarsPadding
 import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.ResetPasswordEvent
@@ -21,6 +22,7 @@ class ResetPasswordActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityResetPasswordBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applySystemBarsPadding()
 
         binding.resetPasswordButton.setOnClickListener {
             viewModel.changePassword(

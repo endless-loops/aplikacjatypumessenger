@@ -6,6 +6,7 @@ import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.example.aplikacjatypumessenger.databinding.ActivityRegisterBinding
+import com.example.aplikacjatypumessenger.utils.applySystemBarsPadding
 import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.RegisterEvent
@@ -20,6 +21,7 @@ class RegisterActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applySystemBarsPadding()
 
         binding.registerButton.setOnClickListener {
             viewModel.register(

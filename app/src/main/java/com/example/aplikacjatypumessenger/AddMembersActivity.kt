@@ -9,6 +9,7 @@ import com.example.aplikacjatypumessenger.adapters.SelectableUserAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityAddMembersBinding
 import com.example.aplikacjatypumessenger.utils.Extras
 import com.example.aplikacjatypumessenger.utils.UiText
+import com.example.aplikacjatypumessenger.utils.applySystemBarsPadding
 import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.AddMembersEvent
@@ -30,6 +31,7 @@ class AddMembersActivity : AppCompatActivity() {
 
         binding = ActivityAddMembersBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applySystemBarsPadding()
 
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.recyclerView.layoutManager = LinearLayoutManager(this)

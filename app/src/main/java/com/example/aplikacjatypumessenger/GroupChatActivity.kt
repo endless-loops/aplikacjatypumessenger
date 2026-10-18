@@ -12,6 +12,7 @@ import com.example.aplikacjatypumessenger.databinding.ActivityGroupChatBinding
 import com.example.aplikacjatypumessenger.services.MessagingService
 import com.example.aplikacjatypumessenger.utils.Extras
 import com.example.aplikacjatypumessenger.utils.UiText
+import com.example.aplikacjatypumessenger.utils.applySystemBarsPadding
 import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.utils.scrollToNewMessages
 import com.example.aplikacjatypumessenger.utils.showToast
@@ -36,6 +37,7 @@ class GroupChatActivity : AppCompatActivity() {
 
         binding = ActivityGroupChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applySystemBarsPadding()
 
         binding.messagesRecyclerView.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.messagesRecyclerView.adapter = messageAdapter

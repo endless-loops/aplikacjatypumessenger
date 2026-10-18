@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.example.aplikacjatypumessenger.databinding.ActivitySplashBinding
+import com.example.aplikacjatypumessenger.utils.applySystemBarsPadding
 import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.viewmodels.SplashViewModel
 import kotlinx.coroutines.flow.filterNotNull
@@ -18,6 +19,7 @@ class SplashActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySplashBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applySystemBarsPadding()
 
         if (savedInstanceState == null) {
             binding.logoImageView.alpha = 0f

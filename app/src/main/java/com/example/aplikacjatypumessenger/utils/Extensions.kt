@@ -1,7 +1,10 @@
 package com.example.aplikacjatypumessenger.utils
 
 import android.content.Context
+import android.view.View
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -46,4 +49,26 @@ fun RecyclerView.scrollToNewMessages(previousCount: Int, lastIsMine: Boolean) {
     val wasAtBottom = previousCount == 0 ||
         (layoutManager?.findLastVisibleItemPosition() ?: 0) >= previousCount - 2
     if (wasAtBottom || lastIsMine) scrollToPosition(count - 1)
+}
+
+/**
+ * Od targetSdk 35 Android rysuje aplikację pod paskami systemowymi (edge-to-edge).
+ * Dodaje do istniejącego paddingu miejsce na paski systemowe i klawiaturę.
+ */
+fun View.applySystemBarsPadding() {
+    val initialLeft = paddingLeft
+    val initialTop = paddingTop
+    val initialRight = paddingRight
+    val initialBottom = paddingBottom
+    ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+        val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+        view.setPadding(
+            initialLeft + bars.left,
+            initialTop + bars.top,
+            initialRight + bars.right,
+            initialBottom + maxOf(bars.bottom, ime.bottom)
+        )
+        WindowInsetsCompat.CONSUMED
+    }
 }

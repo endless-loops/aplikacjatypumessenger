@@ -16,6 +16,7 @@ import com.example.aplikacjatypumessenger.adapters.ChatAdapter
 import com.example.aplikacjatypumessenger.adapters.UserAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityMainBinding
 import com.example.aplikacjatypumessenger.utils.Extras
+import com.example.aplikacjatypumessenger.utils.applySystemBarsPadding
 import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.MainEvent
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applySystemBarsPadding()
 
         binding.chatsRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.chatsRecyclerView.adapter = chatAdapter

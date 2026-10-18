@@ -12,6 +12,7 @@ import com.example.aplikacjatypumessenger.adapters.GroupMemberAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityGroupManagementBinding
 import com.example.aplikacjatypumessenger.utils.Extras
 import com.example.aplikacjatypumessenger.utils.UiText
+import com.example.aplikacjatypumessenger.utils.applySystemBarsPadding
 import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.GroupManagementEvent
@@ -48,6 +49,7 @@ class GroupManagementActivity : AppCompatActivity() {
 
         binding = ActivityGroupManagementBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applySystemBarsPadding()
 
         binding.toolbar.setNavigationOnClickListener { finish() }
         binding.membersRecyclerView.layoutManager = LinearLayoutManager(this)

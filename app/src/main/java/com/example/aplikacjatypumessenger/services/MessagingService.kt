@@ -60,7 +60,8 @@ class MessagingService : FirebaseMessagingService() {
             chatId = chatId,
             senderId = data[KEY_SENDER_ID].orEmpty(),
             isGroup = data[KEY_IS_GROUP].toBoolean(),
-            title = data[KEY_TITLE] ?: remoteMessage.notification?.title ?: getString(R.string.notification_default_title),
+            title = data[KEY_TITLE] ?: data[KEY_SENDER_NAME] ?: remoteMessage.notification?.title
+                ?: getString(R.string.notification_default_title),
             body = data[KEY_BODY] ?: remoteMessage.notification?.body.orEmpty()
         )
     }
@@ -120,6 +121,7 @@ class MessagingService : FirebaseMessagingService() {
         private const val KEY_MESSAGE_ID = "messageId"
         private const val KEY_SENDER_ID = "senderId"
         private const val KEY_TITLE = "title"
+        private const val KEY_SENDER_NAME = "senderName" // starszy format powiadomień
         private const val KEY_BODY = "body"
         private const val KEY_IS_GROUP = "isGroup"
 

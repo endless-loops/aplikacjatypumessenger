@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.aplikacjatypumessenger.adapters.SelectableUserAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityCreateGroupBinding
 import com.example.aplikacjatypumessenger.utils.Extras
+import com.example.aplikacjatypumessenger.utils.applySystemBarsPadding
 import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.CreateGroupEvent
@@ -23,6 +24,7 @@ class CreateGroupActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityCreateGroupBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.root.applySystemBarsPadding()
 
         binding.usersRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.usersRecyclerView.adapter = adapter

@@ -40,6 +40,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/header_chats"
+                    android:textColor="?attr/colorOnPrimary"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:padding="16dp" />
@@ -86,6 +87,7 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:padding="16dp"
+                android:textColor="?attr/colorOnPrimary"
                 android:background="?attr/colorPrimarySurface" />
 
             <androidx.appcompat.widget.SearchView
@@ -93,7 +95,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:queryHint="@string/search_users_hint"
-                android:iconifiedByDefault="false"
+                app:iconifiedByDefault="false"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"
                 android:layout_marginTop="8dp"
