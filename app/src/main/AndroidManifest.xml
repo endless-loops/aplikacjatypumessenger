@@ -6,9 +6,6 @@
     <!-- Uprawnienia -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -34,15 +31,15 @@
         </activity>
         <activity
             android:name=".GroupManagementActivity"
-            android:exported="true" />
+            android:exported="false" />
 
         <activity
             android:name=".GroupChatActivity"
-            android:exported="true" />
+            android:exported="false" />
 
         <activity
             android:name=".CreateGroupActivity"
-            android:exported="true" />
+            android:exported="false" />
 
         <!-- Pozostałe Activity -->
         <activity android:name=".LoginActivity" />

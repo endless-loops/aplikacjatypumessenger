@@ -1,0 +1,76 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function chatData(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId)).data;
+    }
+
+    function isParticipant(chatId) {
+      return signedIn() && uid() in chatData(chatId).participants;
+    }
+
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    function isGroup(data) {
+      return data.get('isGroup', false) == true;
+    }
+
+    // Profile użytkowników: każdy zalogowany może czytać, ale zapisywać tylko własny dokument.
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && uid() == userId && request.resource.data.id == userId;
+      allow delete: if false;
+    }
+
+    match /chats/{chatId} {
+      allow read: if signedIn() && uid() in resource.data.participants;
+
+      allow create: if signedIn()
+        && uid() in request.resource.data.participants
+        && (
+          (!isGroup(request.resource.data) && request.resource.data.participants.size() == 2)
+          || (isGroup(request.resource.data) && request.resource.data.groupAdmin == uid())
+        );
+
+      allow update: if signedIn() && uid() in resource.data.participants && (
+        // Każdy uczestnik aktualizuje podgląd ostatniej wiadomości
+        changedOnly(['lastMessage', 'lastMessageTime'])
+        // Admin grupy może zmieniać skład, nazwę i admina
+        || (isGroup(resource.data) && isGroup(request.resource.data) && resource.data.groupAdmin == uid())
+        // Zwykły członek może tylko opuścić grupę, usuwając samego siebie
+        || (isGroup(resource.data)
+            && changedOnly(['participants'])
+            && request.resource.data.participants.toSet()
+               == resource.data.participants.toSet().difference([uid()].toSet()))
+      );
+
+      allow delete: if signedIn() && isGroup(resource.data) && resource.data.groupAdmin == uid();
+    }
+
+    match /messages/{messageId} {
+      allow read: if isParticipant(resource.data.chatId);
+
+      allow create: if signedIn()
+        && request.resource.data.senderId == uid()
+        && isParticipant(request.resource.data.chatId);
+
+      // Uczestnicy mogą zmieniać wyłącznie status dostarczenia/odczytu
+      allow update: if isParticipant(resource.data.chatId)
+        && changedOnly(['status', 'seen', 'deliveredAt', 'readAt']);
+
+      allow delete: if signedIn() && resource.data.senderId == uid();
+    }
+  }
+}
