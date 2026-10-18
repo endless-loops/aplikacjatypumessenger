@@ -1,8 +1,8 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/action_leave_group"
-        android:title="Opuść grupę" />
+        android:id="@+id/action_group_info"
+        android:title="Informacje o grupie" />
     <item
-        android:id="@+id/action_delete_group"
-        android:title="Usuń grupę" />
+        android:id="@+id/action_manage_group"
+        android:title="Członkowie i zarządzanie" />
 </menu>

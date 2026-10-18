@@ -28,8 +28,7 @@ class ResetPasswordActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent) {
         val data = intent.data
         if (data != null && data.scheme == "yourapp" && data.host == "resetpassword") {
-            TODO()
-            // Możesz przetworzyć dodatkowe parametry z deep linku
+            // Deep link nie niesie dodatkowych parametrów - formularz zmiany hasła jest gotowy do użycia
         }
     }
 

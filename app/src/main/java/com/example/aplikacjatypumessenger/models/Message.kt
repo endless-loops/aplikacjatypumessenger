@@ -1,5 +1,7 @@
 package com.example.aplikacjatypumessenger.models
 
+import com.google.firebase.firestore.PropertyName
+
 data class Message(
     val id: String = "",
     val senderId: String = "",
@@ -13,22 +15,6 @@ data class Message(
     var status: String = "sending", // "wysyłanie", "wysłane", "dostarczone", "przeczytane"
     val deliveredAt: Long = 0L,
     val readAt: Long = 0L,
-    val isGroupMessage: Boolean = false
-) {
-    // No-arg constructor for Firestore
-    constructor() : this(
-        id = "",
-        senderId = "",
-        receiverId = "",
-        chatId = "",
-        text = "",
-        timestamp = 0L,
-        type = "text",
-        mediaUrl = "",
-        seen = false,
-        status = "sending",
-        deliveredAt = 0L,
-        readAt = 0L,
-        isGroupMessage = false
-    )
-}
+    @get:PropertyName("isGroupMessage") @set:PropertyName("isGroupMessage")
+    var isGroupMessage: Boolean = false
+)

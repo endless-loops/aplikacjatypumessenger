@@ -91,9 +91,15 @@ class GroupChatActivity : AppCompatActivity() {
                     val message = change.document.toObject(Message::class.java)
                     when (change.type) {
                         DocumentChange.Type.ADDED -> {
-                            messageList.add(message)
-                            messageAdapter.notifyItemInserted(messageList.size - 1)
-                            binding.messagesRecyclerView.scrollToPosition(messageList.size - 1)
+                            val index = messageList.indexOfFirst { it.id == message.id }
+                            if (index == -1) {
+                                messageList.add(message)
+                                messageAdapter.notifyItemInserted(messageList.size - 1)
+                                binding.messagesRecyclerView.scrollToPosition(messageList.size - 1)
+                            } else {
+                                messageList[index] = message
+                                messageAdapter.notifyItemChanged(index)
+                            }
                         }
                         DocumentChange.Type.MODIFIED -> {
                             val index = messageList.indexOfFirst { it.id == message.id }
@@ -126,6 +132,21 @@ class GroupChatActivity : AppCompatActivity() {
         binding.toolbar.setNavigationOnClickListener {
             finish()
         }
+
+        binding.toolbar.inflateMenu(R.menu.group_chat_menu)
+        binding.toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_manage_group -> {
+                    startActivity(Intent(this, GroupManagementActivity::class.java).putExtra("chatId", chatId))
+                    true
+                }
+                R.id.action_group_info -> {
+                    showGroupInfo()
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     private fun sendMessage(text: String) {
@@ -140,6 +161,7 @@ class GroupChatActivity : AppCompatActivity() {
             text = text,
             timestamp = timestamp,
             type = "text",
+            status = "sent",
             isGroupMessage = isGroup
         )
 
@@ -176,7 +198,7 @@ class GroupChatActivity : AppCompatActivity() {
 
     private fun showGroupInfo() {
         val intent = Intent(this, GroupInfoActivity::class.java).apply {
-            putExtra("chatId", chatId)
+            putExtra("GROUP_ID", chatId)
         }
         startActivity(intent)
     }

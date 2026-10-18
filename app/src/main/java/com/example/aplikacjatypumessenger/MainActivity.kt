@@ -81,11 +81,8 @@ class MainActivity : AppCompatActivity() {
                     true
                 }
                 R.id.navigation_groups -> {
-                    binding.chatsLayout.visibility = View.GONE
-                    binding.usersLayout.visibility = View.GONE
-                    binding.profileLayout.visibility = View.GONE
-                    startActivity(Intent(this, GroupManagementActivity::class.java))
-                    true
+                    startActivity(Intent(this, CreateGroupActivity::class.java))
+                    false
                 }
                 else -> false
             }
@@ -131,7 +128,8 @@ class MainActivity : AppCompatActivity() {
                         chatList.add(chat)
 
                         if (!chat.isGroup) {
-                            val otherUserId = chat.participants.first { it != currentUserId }
+                            val otherUserId = chat.participants.firstOrNull { it != currentUserId }
+                                ?: return@forEach
                             db.collection("users").document(otherUserId).get()
                                 .addOnSuccessListener { userDoc ->
                                     val user = userDoc.toObject(User::class.java)
@@ -155,7 +153,7 @@ class MainActivity : AppCompatActivity() {
                 snapshot?.documents?.mapNotNull { it.toObject(User::class.java) }
                     ?.distinctBy { it.id }
                     ?.let { userList.addAll(it) }
-                userAdapter.submitList(userList)
+                userAdapter.submitList(userList.toList())
             }
     }
 
