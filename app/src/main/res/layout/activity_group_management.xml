@@ -59,7 +59,7 @@
     <!-- Usunięcie grupy (tylko admin) -->
     <Button
         android:id="@+id/deleteGroupButton"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
+        style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:text="@string/delete_group"

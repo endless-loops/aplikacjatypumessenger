@@ -1,11 +1,5 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.android.tools.build:gradle:8.13.2")
-        classpath("com.google.gms:google-services:4.4.3")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.10")
-    }
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android) apply false
+    alias(libs.plugins.google.services) apply false
 }
