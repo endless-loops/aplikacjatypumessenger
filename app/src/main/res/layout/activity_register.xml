@@ -23,7 +23,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Rejestracja"
+            android:text="@string/register_title"
             android:textSize="24sp"
             android:textStyle="bold"
             android:textAlignment="center"
@@ -39,7 +39,7 @@
                 android:id="@+id/usernameEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Nazwa użytkownika"
+                android:hint="@string/username_hint"
                 android:inputType="text"
                 android:imeOptions="actionNext" />
 
@@ -55,7 +55,7 @@
                 android:id="@+id/emailEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Email"
+                android:hint="@string/email_hint"
                 android:inputType="textEmailAddress"
                 android:imeOptions="actionNext" />
 
@@ -71,7 +71,7 @@
                 android:id="@+id/passwordEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Hasło"
+                android:hint="@string/password_hint"
                 android:inputType="textPassword"
                 android:imeOptions="actionDone" />
 
@@ -81,7 +81,7 @@
             android:id="@+id/registerButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Zarejestruj się"
+            android:text="@string/register_button"
             style="@style/Widget.AppCompat.Button"
             android:layout_marginBottom="16dp" />
 
@@ -102,13 +102,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Masz już konto? " />
+                android:text="@string/have_account" />
 
             <TextView
                 android:id="@+id/loginTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Zaloguj się"
+                android:text="@string/login_button"
                 android:textColor="@color/design_default_color_primary"
                 android:textStyle="bold" />
 

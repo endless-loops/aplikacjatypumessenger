@@ -1,82 +1,57 @@
 package com.example.aplikacjatypumessenger.adapters
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.aplikacjatypumessenger.R
+import com.example.aplikacjatypumessenger.databinding.ItemUserBinding
 import com.example.aplikacjatypumessenger.models.User
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.example.aplikacjatypumessenger.utils.TimeFormat
 
 class UserAdapter(
     private val onUserClick: (User) -> Unit
-) : ListAdapter<User, UserAdapter.UserViewHolder>(UserDiffCallback()) {
+) : ListAdapter<User, UserAdapter.UserViewHolder>(DiffCallback) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UserViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_user, parent, false)
-        return UserViewHolder(view)
-    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UserViewHolder =
+        UserViewHolder(ItemUserBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: UserViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    inner class UserViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val userNameText: TextView = itemView.findViewById(R.id.userNameTextView)
-        private val userStatusText: TextView = itemView.findViewById(R.id.userStatusTextView)
-        private val statusIndicator: ImageView = itemView.findViewById(R.id.statusIndicator)
+    inner class UserViewHolder(private val binding: ItemUserBinding) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(user: User) {
-            userNameText.text = user.username
-
-            when (user.status) {
-                "online" -> {
-                    userStatusText.text = "Online"
-                    statusIndicator.setColorFilter(
-                        ContextCompat.getColor(itemView.context, R.color.online_green)
-                    )
-                }
-                else -> {
-                    userStatusText.text = "Ostatnio: ${formatLastSeen(user.lastSeen)}"
-                    statusIndicator.setColorFilter(
-                        ContextCompat.getColor(itemView.context, R.color.offline_gray)
-                    )
-                }
-            }
-
-            itemView.setOnClickListener { onUserClick(user) }
+            val context = binding.root.context
+            binding.userNameTextView.text = user.username
+            binding.userStatusTextView.text =
+                if (user.isOnline) context.getString(R.string.status_online) else formatLastSeen(user.lastSeen)
+            binding.statusIndicator.setColorFilter(
+                ContextCompat.getColor(context, if (user.isOnline) R.color.online_green else R.color.offline_gray)
+            )
+            binding.root.setOnClickListener { onUserClick(user) }
         }
 
         private fun formatLastSeen(timestamp: Long): String {
-            val now = System.currentTimeMillis()
-            val diff = now - timestamp
-            val minutes = diff / (1000 * 60)
-            val hours = diff / (1000 * 60 * 60)
-
-            return when {
-                minutes < 1 -> "teraz"
-                minutes < 60 -> "$minutes min temu"
-                hours < 24 -> "$hours godz. temu"
-                else -> SimpleDateFormat("dd.MM HH:mm", Locale.getDefault()).format(Date(timestamp))
+            val context = binding.root.context
+            if (timestamp <= 0L) return context.getString(R.string.status_offline)
+            val minutes = (System.currentTimeMillis() - timestamp) / 60_000
+            val hours = minutes / 60
+            val ago = when {
+                minutes < 1 -> context.getString(R.string.last_seen_now)
+                minutes < 60 -> context.getString(R.string.last_seen_minutes, minutes)
+                hours < 24 -> context.getString(R.string.last_seen_hours, hours)
+                else -> TimeFormat.dateTime(timestamp)
             }
+            return context.getString(R.string.last_seen, ago)
         }
     }
-}
 
-class UserDiffCallback : DiffUtil.ItemCallback<User>() {
-    override fun areItemsTheSame(oldItem: User, newItem: User): Boolean {
-        return oldItem.id == newItem.id
-    }
-
-    override fun areContentsTheSame(oldItem: User, newItem: User): Boolean {
-        return oldItem == newItem
+    private object DiffCallback : DiffUtil.ItemCallback<User>() {
+        override fun areItemsTheSame(oldItem: User, newItem: User) = oldItem.id == newItem.id
+        override fun areContentsTheSame(oldItem: User, newItem: User) = oldItem == newItem
     }
 }

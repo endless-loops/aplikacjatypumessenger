@@ -3,122 +3,94 @@ package com.example.aplikacjatypumessenger
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import androidx.activity.viewModels
+import androidx.annotation.StringRes
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.aplikacjatypumessenger.adapters.GroupMemberAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityGroupManagementBinding
-import com.example.aplikacjatypumessenger.models.User
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import com.example.aplikacjatypumessenger.utils.Extras
+import com.example.aplikacjatypumessenger.utils.UiText
+import com.example.aplikacjatypumessenger.utils.collectWhenStarted
+import com.example.aplikacjatypumessenger.utils.showToast
+import com.example.aplikacjatypumessenger.viewmodels.GroupManagementEvent
+import com.example.aplikacjatypumessenger.viewmodels.GroupManagementViewModel
 
+/** Informacje o grupie, lista członków i akcje administratora. */
 class GroupManagementActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityGroupManagementBinding
-    private lateinit var auth: FirebaseAuth
-    private lateinit var db: FirebaseFirestore
-    private lateinit var memberAdapter: GroupMemberAdapter
-    private var memberList = mutableListOf<User>()
-    private var chatId: String = ""
-    private var isAdmin: Boolean = false
-    private var currentUserId: String = ""
+    private val viewModel: GroupManagementViewModel by viewModels { GroupManagementViewModel.Factory }
+    private lateinit var chatId: String
+
+    private val memberAdapter = GroupMemberAdapter(
+        onRemove = { member ->
+            confirm(getString(R.string.confirm_remove_member, member.user.username)) {
+                viewModel.removeMember(member.user.id)
+            }
+        },
+        onMakeAdmin = { member ->
+            confirm(getString(R.string.confirm_make_admin, member.user.username)) {
+                viewModel.makeAdmin(member.user.id)
+            }
+        }
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        chatId = intent.getStringExtra(Extras.CHAT_ID).orEmpty()
+        if (chatId.isEmpty()) {
+            showToast(UiText.Res(R.string.error_missing_chat_data))
+            finish()
+            return
+        }
+
         binding = ActivityGroupManagementBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        auth = Firebase.auth
-        db = Firebase.firestore
-        currentUserId = auth.currentUser?.uid ?: ""
-        chatId = intent.getStringExtra("chatId") ?: ""
+        binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.membersRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.membersRecyclerView.adapter = memberAdapter
 
-        if (chatId.isEmpty()) return
-
-        setupViews()
-        loadGroupMembers()
-        checkAdminStatus()
-        setupClickListeners()
-    }
-
-    private fun setupViews() {
-        memberAdapter = GroupMemberAdapter(memberList, isAdmin, currentUserId) { user, action ->
-            when (action) {
-                "remove" -> removeMember(user.id)
-                "make_admin" -> makeAdmin(user.id)
-            }
-        }
-
-        binding.membersRecyclerView.apply {
-            layoutManager = LinearLayoutManager(this@GroupManagementActivity)
-            adapter = memberAdapter
-        }
-    }
-
-    private fun checkAdminStatus() {
-        db.collection("chats").document(chatId)
-            .get()
-            .addOnSuccessListener { document ->
-                val adminId = document.getString("groupAdmin")
-                isAdmin = adminId == currentUserId
-                memberAdapter.isAdmin = isAdmin
-                memberAdapter.notifyDataSetChanged()
-                binding.addMembersButton.visibility = if (isAdmin) View.VISIBLE else View.GONE
-            }
-    }
-
-    private fun loadGroupMembers() {
-        db.collection("chats").document(chatId)
-            .get()
-            .addOnSuccessListener { document ->
-                val participants = document.get("participants") as? List<String> ?: emptyList()
-                loadUsersDetails(participants)
-            }
-    }
-
-    private fun loadUsersDetails(userIds: List<String>) {
-        memberList.clear()
-        userIds.forEach { userId ->
-            db.collection("users").document(userId)
-                .get()
-                .addOnSuccessListener { document ->
-                    val user = document.toObject(User::class.java)
-                    user?.let {
-                        memberList.add(it)
-                        memberAdapter.notifyDataSetChanged()
-                    }
-                }
-        }
-    }
-
-    private fun removeMember(userId: String) {
-        db.collection("chats").document(chatId)
-            .update("participants", FieldValue.arrayRemove(userId))
-            .addOnSuccessListener { loadGroupMembers() }
-    }
-
-    private fun makeAdmin(userId: String) {
-        db.collection("chats").document(chatId)
-            .update("groupAdmin", userId)
-            .addOnSuccessListener { checkAdminStatus() }
-    }
-
-    private fun setupClickListeners() {
         binding.addMembersButton.setOnClickListener {
-            val intent = Intent(this, AddMembersActivity::class.java).apply {
-                putExtra("chatId", chatId)
-            }
-            startActivity(intent)
+            startActivity(Intent(this, AddMembersActivity::class.java).putExtra(Extras.CHAT_ID, chatId))
+        }
+        binding.leaveGroupButton.setOnClickListener {
+            confirm(R.string.confirm_leave_group) { viewModel.leaveGroup() }
+        }
+        binding.deleteGroupButton.setOnClickListener {
+            confirm(R.string.confirm_delete_group) { viewModel.deleteGroup() }
         }
 
-        binding.leaveGroupButton.setOnClickListener { leaveGroup() }
+        collectWhenStarted(viewModel.uiState) { state ->
+            binding.toolbar.title = state.groupName ?: getString(R.string.default_group_name)
+            binding.memberCountTextView.text = getString(R.string.group_member_count, state.members.size)
+            memberAdapter.canManage = state.isCurrentUserAdmin
+            memberAdapter.submitList(state.members)
+
+            val adminVisibility = if (state.isCurrentUserAdmin) View.VISIBLE else View.GONE
+            binding.addMembersButton.visibility = adminVisibility
+            binding.deleteGroupButton.visibility = adminVisibility
+            binding.addMembersButton.isEnabled = !state.isBusy
+            binding.leaveGroupButton.isEnabled = !state.isBusy
+            binding.deleteGroupButton.isEnabled = !state.isBusy
+        }
+        collectWhenStarted(viewModel.events) { event ->
+            when (event) {
+                is GroupManagementEvent.ShowMessage -> showToast(event.text, long = true)
+                GroupManagementEvent.Close -> finish()
+            }
+        }
     }
 
-    private fun leaveGroup() {
-        removeMember(currentUserId)
-        finish()
+    private fun confirm(@StringRes messageRes: Int, onConfirm: () -> Unit) = confirm(getString(messageRes), onConfirm)
+
+    private fun confirm(message: String, onConfirm: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setMessage(message)
+            .setPositiveButton(R.string.action_confirm) { _, _ -> onConfirm() }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
     }
 }

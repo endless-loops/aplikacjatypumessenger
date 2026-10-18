@@ -5,7 +5,14 @@ data class User(
     val email: String = "",
     val username: String = "",
     val profileImage: String = "",
-    val status: String = "online",
-    val lastSeen: Long = System.currentTimeMillis(),
+    val status: String = UserStatus.OFFLINE,
+    val lastSeen: Long = 0L,
     val fcmToken: String = ""
-)
+) {
+    val isOnline: Boolean get() = status == UserStatus.ONLINE
+}
+
+object UserStatus {
+    const val ONLINE = "online"
+    const val OFFLINE = "offline"
+}

@@ -1,39 +1,39 @@
 package com.example.aplikacjatypumessenger.adapters
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.aplikacjatypumessenger.R
-import com.example.aplikacjatypumessenger.models.Chat
+import com.example.aplikacjatypumessenger.databinding.ItemChatBinding
+import com.example.aplikacjatypumessenger.utils.TimeFormat
+import com.example.aplikacjatypumessenger.viewmodels.ChatListItem
 
 class ChatAdapter(
-    private val chats: List<Chat>,
-    private val onChatClick: (Chat) -> Unit
-) : RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
+    private val onChatClick: (ChatListItem) -> Unit
+) : ListAdapter<ChatListItem, ChatAdapter.ChatViewHolder>(DiffCallback) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_chat, parent, false)
-        return ChatViewHolder(view)
-    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder =
+        ChatViewHolder(ItemChatBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
-        holder.bind(chats[position])
+        holder.bind(getItem(position))
     }
 
-    override fun getItemCount() = chats.size
-
-    inner class ChatViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        fun bind(chat: Chat) {
-            itemView.findViewById<TextView>(R.id.chatNameTextView).text = "Chat ${chat.chatName.take(8)}"
-            itemView.findViewById<TextView>(R.id.lastMessageTextView).text = 
-                chat.lastMessage?.text ?: "Brak wiadomości"
-            
-            itemView.setOnClickListener {
-                onChatClick(chat)
-            }
+    inner class ChatViewHolder(private val binding: ItemChatBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(chat: ChatListItem) {
+            val context = binding.root.context
+            binding.chatNameTextView.text = chat.title
+                ?: context.getString(if (chat.isGroup) R.string.default_group_name else R.string.default_user_name)
+            binding.lastMessageTextView.text = chat.lastMessage ?: context.getString(R.string.no_messages)
+            binding.timeTextView.text = TimeFormat.chatListTime(chat.lastMessageTime)
+            binding.root.setOnClickListener { onChatClick(chat) }
         }
+    }
+
+    private object DiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
+        override fun areItemsTheSame(oldItem: ChatListItem, newItem: ChatListItem) = oldItem.chatId == newItem.chatId
+        override fun areContentsTheSame(oldItem: ChatListItem, newItem: ChatListItem) = oldItem == newItem
     }
 }

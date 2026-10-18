@@ -1,4 +1,5 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -16,13 +17,13 @@
             android:id="@+id/cancelButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Anuluj" />
+            android:text="@string/action_cancel" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Utwórz grupę"
+            android:text="@string/create_group"
             android:textSize="18sp"
             android:textStyle="bold"
             android:gravity="center" />
@@ -31,7 +32,7 @@
             android:id="@+id/createGroupButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Utwórz" />
+            android:text="@string/action_create" />
     </LinearLayout>
 
     <!-- Nazwa grupy -->
@@ -39,7 +40,7 @@
         android:id="@+id/groupNameEditText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Nazwa grupy"
+        android:hint="@string/group_name_hint"
         android:inputType="textCapWords"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="8dp"/>
@@ -49,7 +50,7 @@
         android:id="@+id/selectedCountText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Wybrano: 0 użytkowników"
+        tools:text="Wybrano: 0 użytkowników"
         android:layout_marginBottom="8dp" />
 
     <!-- Lista użytkowników -->

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -12,9 +13,10 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
-        android:title="Czat grupowy"
-        android:titleTextColor="@android:color/white"
-        app:navigationIcon="@drawable/ic_arrow_back"/>
+        app:title="@string/group_chat_title"
+        app:titleTextColor="@android:color/white"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationContentDescription="@string/action_back"/>
 
     <!-- Wyświetlanie uczestników grupy -->
     <TextView
@@ -22,7 +24,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="8dp"
-        android:text="Uczestnicy: "
+        tools:text="Uczestnicy:"
         android:textSize="14sp"
         android:textColor="#333333"
         android:background="#F5F5F5" />
@@ -50,10 +52,11 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="Napisz wiadomość..."
+            android:hint="@string/type_message"
             android:padding="10dp"
             android:background="@android:drawable/edit_text"
-            android:inputType="textMultiLine"
+            android:inputType="textCapSentences|textMultiLine"
+            android:imeOptions="actionSend"
             android:scrollHorizontally="false"
             android:maxLines="4" />
 
@@ -64,7 +67,7 @@
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_send"
-            android:contentDescription="Wyślij" />
+            android:contentDescription="@string/send_message" />
     </LinearLayout>
 
 </LinearLayout>

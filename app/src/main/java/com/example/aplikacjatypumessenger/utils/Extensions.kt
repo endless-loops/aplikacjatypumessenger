@@ -1,3 +1,49 @@
 package com.example.aplikacjatypumessenger.utils
 
-// Todo: w razie konieczności można dodać extension functions
+import android.content.Context
+import android.widget.Toast
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import com.example.aplikacjatypumessenger.MessengerApplication
+import com.example.aplikacjatypumessenger.di.AppContainer
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
+
+val Context.appContainer: AppContainer
+    get() = (applicationContext as MessengerApplication).container
+
+/** Dostęp do kontenera zależności w `viewModelFactory { initializer { ... } }`. */
+val CreationExtras.appContainer: AppContainer
+    get() = (checkNotNull(this[APPLICATION_KEY]) as MessengerApplication).container
+
+/** Zbiera flow tylko wtedy, gdy ekran jest widoczny (bezpieczne względem cyklu życia). */
+fun <T> LifecycleOwner.collectWhenStarted(flow: Flow<T>, action: suspend (T) -> Unit) {
+    lifecycleScope.launch {
+        repeatOnLifecycle(Lifecycle.State.STARTED) {
+            flow.collect { action(it) }
+        }
+    }
+}
+
+fun Context.showToast(text: UiText, long: Boolean = false) {
+    Toast.makeText(this, text.asString(this), if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+}
+
+/**
+ * Przewija do najnowszej wiadomości, gdy doszły nowe, a użytkownik był na dole listy
+ * albo sam właśnie coś wysłał.
+ */
+fun RecyclerView.scrollToNewMessages(previousCount: Int, lastIsMine: Boolean) {
+    val count = adapter?.itemCount ?: 0
+    if (count == 0 || count <= previousCount) return
+    val layoutManager = layoutManager as? LinearLayoutManager
+    val wasAtBottom = previousCount == 0 ||
+        (layoutManager?.findLastVisibleItemPosition() ?: 0) >= previousCount - 2
+    if (wasAtBottom || lastIsMine) scrollToPosition(count - 1)
+}

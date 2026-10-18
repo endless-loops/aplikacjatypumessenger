@@ -1,215 +1,137 @@
 package com.example.aplikacjatypumessenger
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.aplikacjatypumessenger.adapters.ChatAdapter
 import com.example.aplikacjatypumessenger.adapters.UserAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityMainBinding
-import com.example.aplikacjatypumessenger.models.Chat
-import com.example.aplikacjatypumessenger.models.User
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.aplikacjatypumessenger.utils.Extras
+import com.example.aplikacjatypumessenger.utils.collectWhenStarted
+import com.example.aplikacjatypumessenger.utils.showToast
+import com.example.aplikacjatypumessenger.viewmodels.MainEvent
+import com.example.aplikacjatypumessenger.viewmodels.MainTab
+import com.example.aplikacjatypumessenger.viewmodels.MainUiState
+import com.example.aplikacjatypumessenger.viewmodels.MainViewModel
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var auth: FirebaseAuth
-    private lateinit var db: FirebaseFirestore
+    private val viewModel: MainViewModel by viewModels { MainViewModel.Factory }
 
-    private lateinit var chatAdapter: ChatAdapter
-    private lateinit var userAdapter: UserAdapter
+    private val chatAdapter = ChatAdapter { chat -> openChat(chat.chatId, chat.isGroup, chat.otherUserId) }
+    private val userAdapter = UserAdapter { user -> viewModel.onUserClicked(user) }
 
-    private val chatList = mutableListOf<Chat>()
-    private val userList = mutableListOf<User>()
+    // Na Androidzie 13+ powiadomienia wymagają zgody użytkownika
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        auth = FirebaseAuth.getInstance()
-        db = FirebaseFirestore.getInstance()
+        binding.chatsRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.chatsRecyclerView.adapter = chatAdapter
+        binding.usersRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.usersRecyclerView.adapter = userAdapter
 
-        setupAdapters()
-        setupBottomNavigation()
-        setupSearch()
-
-        loadCurrentUserProfile()
-        loadChatsAndGroups()
-        loadUsers()
+        setupListeners()
+        observeViewModel()
+        if (savedInstanceState == null) requestNotificationPermission()
     }
 
-    private fun setupAdapters() {
-        chatAdapter = ChatAdapter(chatList) { chat -> openChat(chat) }
-        userAdapter = UserAdapter { user -> startChatWithUser(user) }
-
-        binding.chatsRecyclerView.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = chatAdapter
-        }
-
-        binding.usersRecyclerView.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = userAdapter
-        }
-    }
-
-    private fun setupBottomNavigation() {
+    private fun setupListeners() {
         binding.bottomNavigation.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_chats -> {
-                    binding.chatsLayout.visibility = View.VISIBLE
-                    binding.usersLayout.visibility = View.GONE
-                    binding.profileLayout.visibility = View.GONE
-                    true
-                }
-                R.id.nav_users -> {
-                    binding.chatsLayout.visibility = View.GONE
-                    binding.usersLayout.visibility = View.VISIBLE
-                    binding.profileLayout.visibility = View.GONE
-                    true
-                }
-                R.id.nav_profile -> {
-                    binding.chatsLayout.visibility = View.GONE
-                    binding.usersLayout.visibility = View.GONE
-                    binding.profileLayout.visibility = View.VISIBLE
-                    loadProfileData()
-                    true
-                }
-                R.id.navigation_groups -> {
-                    startActivity(Intent(this, CreateGroupActivity::class.java))
-                    false
-                }
-                else -> false
-            }
+            val tab = TAB_BY_MENU_ID.entries.firstOrNull { it.value == item.itemId }?.key
+                ?: return@setOnItemSelectedListener false
+            viewModel.selectTab(tab)
+            true
         }
-
-        binding.logoutButton.setOnClickListener { logout() }
-    }
-
-    private fun setupSearch() {
-        binding.userSearchView.setOnQueryTextListener(object :
-            androidx.appcompat.widget.SearchView.OnQueryTextListener {
+        binding.userSearchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?) = false
             override fun onQueryTextChange(newText: String?): Boolean {
-                val query = newText?.trim()?.lowercase() ?: ""
-                val filtered = if (query.isEmpty()) userList else userList.filter { it.username.lowercase().contains(query) }
-                userAdapter.submitList(filtered)
+                viewModel.setQuery(newText.orEmpty())
                 return true
             }
         })
+        binding.createGroupButton.setOnClickListener {
+            startActivity(Intent(this, CreateGroupActivity::class.java))
+        }
+        binding.logoutButton.setOnClickListener { viewModel.logout() }
     }
 
-    private fun loadCurrentUserProfile() {
-        auth.currentUser?.let {
-            binding.userNameTextView.text = it.email
+    private fun observeViewModel() {
+        collectWhenStarted(viewModel.uiState) { render(it) }
+        collectWhenStarted(viewModel.events) { event ->
+            when (event) {
+                is MainEvent.OpenChat -> openChat(event.chatId, event.isGroup, event.otherUserId)
+                is MainEvent.ShowMessage -> showToast(event.text)
+                MainEvent.NavigateToLogin -> {
+                    startActivity(
+                        Intent(this, LoginActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    )
+                    finish()
+                }
+            }
         }
     }
 
-    private fun loadChatsAndGroups() {
-        val currentUserId = auth.currentUser?.uid ?: return
+    private fun render(state: MainUiState) {
+        val tab = state.selectedTab
+        val menuId = TAB_BY_MENU_ID.getValue(tab)
+        if (binding.bottomNavigation.selectedItemId != menuId) binding.bottomNavigation.selectedItemId = menuId
 
-        db.collection("chats")
-            .whereArrayContains("participants", currentUserId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
+        val showChats = tab == MainTab.CHATS || tab == MainTab.GROUPS
+        binding.chatsLayout.visibility = if (showChats) View.VISIBLE else View.GONE
+        binding.usersLayout.visibility = if (tab == MainTab.USERS) View.VISIBLE else View.GONE
+        binding.profileLayout.visibility = if (tab == MainTab.PROFILE) View.VISIBLE else View.GONE
 
-                chatList.clear()
-                val tempSet = mutableSetOf<String>()
+        binding.chatsHeaderTextView.setText(if (tab == MainTab.GROUPS) R.string.header_groups else R.string.header_chats)
+        binding.createGroupButton.visibility = if (tab == MainTab.GROUPS) View.VISIBLE else View.GONE
+        binding.emptyChatsTextView.visibility = if (showChats && state.chats.isEmpty()) View.VISIBLE else View.GONE
+        binding.emptyChatsTextView.setText(if (tab == MainTab.GROUPS) R.string.empty_groups else R.string.empty_chats)
 
-                snapshot?.documents?.forEach { doc ->
-                    val chat = doc.toObject(Chat::class.java) ?: return@forEach
-                    if (!tempSet.contains(chat.id)) {
-                        tempSet.add(chat.id)
-                        chatList.add(chat)
+        chatAdapter.submitList(state.chats)
+        userAdapter.submitList(state.users)
 
-                        if (!chat.isGroup) {
-                            val otherUserId = chat.participants.firstOrNull { it != currentUserId }
-                                ?: return@forEach
-                            db.collection("users").document(otherUserId).get()
-                                .addOnSuccessListener { userDoc ->
-                                    val user = userDoc.toObject(User::class.java)
-                                    chat.chatName = user?.username ?: "Użytkownik"
-                                    chatAdapter.notifyDataSetChanged()
-                                }
-                        }
-                    }
-                }
-                chatAdapter.notifyDataSetChanged()
-            }
+        binding.profileNameTextView.text = state.profile?.username.orEmpty()
+        binding.profileEmailTextView.text = state.profile?.email ?: state.email
     }
 
-    private fun loadUsers() {
-        val currentUserId = auth.currentUser?.uid ?: return
-        db.collection("users")
-            .whereNotEqualTo("id", currentUserId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
-                userList.clear()
-                snapshot?.documents?.mapNotNull { it.toObject(User::class.java) }
-                    ?.distinctBy { it.id }
-                    ?.let { userList.addAll(it) }
-                userAdapter.submitList(userList.toList())
-            }
-    }
-
-    private fun loadProfileData() {
-        val currentUser = auth.currentUser ?: return
-        db.collection("users").document(currentUser.uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                doc.toObject(User::class.java)?.let {
-                    binding.profileNameTextView.text = it.username
-                    binding.profileEmailTextView.text = it.email
-                }
-            }
-    }
-
-    private fun openChat(chat: Chat) {
-        val intent = Intent(
-            this,
-            if (chat.isGroup) GroupChatActivity::class.java else ChatActivity::class.java
-        ).apply {
-            putExtra("chatId", chat.id)
-            if (chat.isGroup) putExtra("isGroup", true)
-            else putExtra("otherUserId", chat.participants.find { it != auth.currentUser?.uid })
+    private fun openChat(chatId: String, isGroup: Boolean, otherUserId: String?) {
+        val intent = if (isGroup) {
+            Intent(this, GroupChatActivity::class.java)
+        } else {
+            Intent(this, ChatActivity::class.java).putExtra(Extras.OTHER_USER_ID, otherUserId)
         }
-        startActivity(intent)
+        startActivity(intent.putExtra(Extras.CHAT_ID, chatId))
     }
 
-    private fun startChatWithUser(user: User) {
-        val currentUserId = auth.currentUser?.uid ?: return
-
-        db.collection("chats")
-            .whereArrayContains("participants", currentUserId)
-            .get()
-            .addOnSuccessListener { snapshot ->
-                val existingChat = snapshot.documents.mapNotNull { it.toObject(Chat::class.java) }
-                    .firstOrNull { it.participants.contains(user.id) && !it.isGroup }
-
-                if (existingChat != null) openChat(existingChat)
-                else createPrivateChat(user)
-            }
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
-    private fun createPrivateChat(user: User) {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val chatId = db.collection("chats").document().id
-        val chat = Chat(id = chatId, participants = listOf(currentUserId, user.id), isGroup = false)
-
-        db.collection("chats").document(chatId)
-            .set(chat)
-            .addOnSuccessListener { openChat(chat) }
-            .addOnFailureListener { Toast.makeText(this, "Błąd tworzenia czatu", Toast.LENGTH_SHORT).show() }
-    }
-
-    private fun logout() {
-        auth.signOut()
-        startActivity(Intent(this, LoginActivity::class.java))
-        finish()
+    private companion object {
+        val TAB_BY_MENU_ID = mapOf(
+            MainTab.CHATS to R.id.nav_chats,
+            MainTab.GROUPS to R.id.navigation_groups,
+            MainTab.USERS to R.id.nav_users,
+            MainTab.PROFILE to R.id.nav_profile
+        )
     }
 }

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.aplikacjatypumessenger">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Uprawnienia -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -9,12 +8,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".MyApplication"
+        android:name=".MessengerApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="appaplikacjatypumessenger"
+        android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar"
@@ -47,7 +46,6 @@
         <activity android:name=".MainActivity" />
         <activity android:name=".ChatActivity" />
         <activity android:name=".AddMembersActivity" />
-        <activity android:name=".GroupInfoActivity" />
         <activity
             android:name=".ResetPasswordActivity"
             android:exported="true">

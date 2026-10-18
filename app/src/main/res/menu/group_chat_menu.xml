@@ -1,8 +1,9 @@
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/action_group_info"
-        android:title="Informacje o grupie" />
-    <item
-        android:id="@+id/action_manage_group"
-        android:title="Członkowie i zarządzanie" />
+        android:icon="@drawable/ic_info_24"
+        android:title="@string/group_info"
+        app:showAsAction="ifRoom" />
 </menu>

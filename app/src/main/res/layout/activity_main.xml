@@ -27,14 +27,42 @@
             android:orientation="vertical"
             android:visibility="visible">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Twoje konwersacje"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:padding="16dp"
-                android:background="?attr/colorPrimarySurface" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="?attr/colorPrimarySurface">
+
+                <TextView
+                    android:id="@+id/chatsHeaderTextView"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/header_chats"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:padding="16dp" />
+
+                <Button
+                    android:id="@+id/createGroupButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/create_group"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/emptyChatsTextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="24dp"
+                android:gravity="center"
+                android:text="@string/empty_chats"
+                android:textColor="@android:color/darker_gray"
+                android:visibility="gone" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/chatsRecyclerView"
@@ -54,7 +82,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Użytkownicy"
+                android:text="@string/header_users"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:padding="16dp"
@@ -64,7 +92,7 @@
                 android:id="@+id/userSearchView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:queryHint="Szukaj użytkowników"
+                android:queryHint="@string/search_users_hint"
                 android:iconifiedByDefault="false"
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"
@@ -74,7 +102,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Ostatnio aktywni:"
+                android:text="@string/recently_active"
                 android:textSize="14sp"
                 android:paddingStart="16dp"
                 android:paddingTop="8dp"
@@ -99,7 +127,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Twój profil"
+                android:text="@string/header_profile"
                 android:textSize="24sp"
                 android:textStyle="bold"
                 android:textAlignment="center"
@@ -111,15 +139,8 @@
                 android:layout_height="100dp"
                 android:layout_gravity="center_horizontal"
                 android:src="@drawable/ic_profile_placeholder"
+                android:contentDescription="@string/user_avatar"
                 android:layout_marginBottom="16dp" />
-
-            <TextView
-                android:id="@+id/userNameTextView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:layout_marginBottom="8dp"
-                android:textAlignment="center" />
 
             <TextView
                 android:id="@+id/profileNameTextView"
@@ -142,7 +163,7 @@
                 android:id="@+id/logoutButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Wyloguj się"
+                android:text="@string/logout"
                 style="@style/Widget.AppCompat.Button" />
 
         </LinearLayout>

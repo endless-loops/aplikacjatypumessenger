@@ -1,16 +1,121 @@
 <resources>
     <string name="app_name">Messenger App</string>
-    <string name="welcome_message">Witaj w Messengerze!</string>
+
+    <!-- Logowanie i rejestracja -->
+    <string name="login_title">Logowanie</string>
+    <string name="register_title">Rejestracja</string>
     <string name="email_hint">Email</string>
     <string name="password_hint">Hasło</string>
     <string name="username_hint">Nazwa użytkownika</string>
     <string name="login_button">Zaloguj się</string>
     <string name="register_button">Zarejestruj się</string>
-    <string name="no_account">Nie masz konta?</string>
-    <string name="have_account">Masz już konto?</string>
+    <string name="no_account">Nie masz konta? </string>
+    <string name="have_account">Masz już konto? </string>
     <string name="forgot_password">Zapomniałeś hasła?</string>
+    <string name="forgot_password_prompt">Wprowadź swój adres email, aby zresetować hasło:</string>
+    <string name="reset_password_title">Resetowanie hasła</string>
+    <string name="new_password_prompt">Wprowadź nowe hasło:</string>
+    <string name="new_password_hint">Nowe hasło</string>
+    <string name="confirm_password_hint">Potwierdź hasło</string>
+    <string name="reset_password_button">Zresetuj hasło</string>
+    <string name="back_to_login">Powrót do logowania</string>
+    <string name="password_reset_sent">Email resetujący hasło został wysłany na: %1$s</string>
+    <string name="password_changed">Hasło zostało zmienione pomyślnie</string>
+
+    <!-- Ekran główny -->
+    <string name="nav_chats">Czaty</string>
+    <string name="nav_users">Użytkownicy</string>
+    <string name="nav_profile">Profil</string>
+    <string name="nav_groups">Grupy</string>
+    <string name="header_chats">Twoje konwersacje</string>
+    <string name="header_groups">Twoje grupy</string>
+    <string name="header_users">Użytkownicy</string>
+    <string name="header_profile">Twój profil</string>
+    <string name="search_users_hint">Szukaj użytkowników</string>
+    <string name="recently_active">Ostatnio aktywni:</string>
+    <string name="empty_chats">Nie masz jeszcze żadnych konwersacji. Wybierz kogoś z listy użytkowników.</string>
+    <string name="empty_groups">Nie należysz jeszcze do żadnej grupy.</string>
+    <string name="create_group">Utwórz grupę</string>
+    <string name="logout">Wyloguj się</string>
+    <string name="no_messages">Brak wiadomości</string>
+    <string name="default_user_name">Użytkownik</string>
+    <string name="default_group_name">Grupa</string>
+
+    <!-- Status użytkownika -->
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
+    <string name="last_seen">Ostatnio: %1$s</string>
+    <string name="last_seen_now">teraz</string>
+    <string name="last_seen_minutes">%1$d min temu</string>
+    <string name="last_seen_hours">%1$d godz. temu</string>
+
+    <!-- Czat -->
+    <string name="type_message">Wpisz wiadomość…</string>
     <string name="send_message">Wyślij</string>
-    <string name="type_message">Wpisz wiadomość...</string>
     <string name="user_avatar">Avatar użytkownika</string>
+    <string name="action_back">Wstecz</string>
+
+    <!-- Grupy -->
+    <string name="group_chat_title">Czat grupowy</string>
+    <string name="group_info">Informacje i członkowie</string>
+    <string name="group_management_title">Zarządzanie grupą</string>
+    <string name="group_member_count">Członkowie: %1$d</string>
+    <string name="group_name_hint">Nazwa grupy</string>
+    <string name="action_create">Utwórz</string>
+    <string name="selected_users_count">Wybrano: %1$d</string>
+    <string name="add_members">Dodaj członków</string>
+    <string name="add_members_to">Dodaj członków do: %1$s</string>
+    <string name="add_members_count">Dodaj (%1$d)</string>
+    <string name="adding_members">Dodawanie…</string>
+    <string name="members_added">Dodano członków: %1$d</string>
+    <string name="leave_group">Opuść grupę</string>
+    <string name="delete_group">Usuń grupę</string>
     <string name="options">Opcje</string>
+    <string name="action_remove_member">Usuń z grupy</string>
+    <string name="action_make_admin">Przekaż uprawnienia admina</string>
+    <string name="member_you">%1$s (Ty)</string>
+    <string name="member_admin_status">Admin · %1$s</string>
+    <string name="confirm_remove_member">Usunąć użytkownika %1$s z grupy?</string>
+    <string name="confirm_make_admin">Przekazać uprawnienia admina użytkownikowi %1$s? Stracisz je.</string>
+    <string name="confirm_leave_group">Czy na pewno chcesz opuścić grupę?</string>
+    <string name="confirm_delete_group">Usunąć grupę wraz ze wszystkimi wiadomościami? Tej operacji nie można cofnąć.</string>
+    <string name="group_no_longer_member">Ta grupa nie jest już dla Ciebie dostępna</string>
+
+    <!-- Wspólne -->
+    <string name="action_send">Wyślij</string>
+    <string name="action_cancel">Anuluj</string>
+    <string name="action_confirm">Potwierdź</string>
+
+    <!-- Powiadomienia -->
+    <string name="notification_channel_name">Wiadomości</string>
+    <string name="notification_channel_description">Powiadomienia o nowych wiadomościach</string>
+    <string name="notification_default_title">Nowa wiadomość</string>
+
+    <!-- Błędy -->
+    <string name="error_generic">Błąd: %1$s</string>
+    <string name="error_invalid_email">Wprowadź poprawny email</string>
+    <string name="error_password_too_short">Hasło musi mieć co najmniej %1$d znaków</string>
+    <string name="error_username_too_short">Nazwa użytkownika musi mieć co najmniej %1$d znaki</string>
+    <string name="error_passwords_differ">Hasła nie są identyczne</string>
+    <string name="error_login_failed">Logowanie nieudane: %1$s</string>
+    <string name="error_login_timeout">Logowanie zajmuje zbyt długo. Sprawdź połączenie z internetem.</string>
+    <string name="error_register_failed">Rejestracja nieudana: %1$s</string>
+    <string name="error_saving_user">Błąd zapisu użytkownika: %1$s</string>
+    <string name="error_relogin_required">Wymagane ponowne logowanie do zmiany hasła</string>
+    <string name="error_password_change">Błąd podczas zmiany hasła: %1$s</string>
+    <string name="error_missing_chat_data">Błąd: brak wymaganych danych czatu</string>
+    <string name="error_loading_chats">Błąd ładowania czatów: %1$s</string>
+    <string name="error_loading_users">Błąd ładowania użytkowników: %1$s</string>
+    <string name="error_loading_messages">Błąd ładowania wiadomości: %1$s</string>
+    <string name="error_loading_members">Błąd wczytywania członków grupy: %1$s</string>
+    <string name="error_sending_message">Nie udało się wysłać wiadomości: %1$s</string>
+    <string name="error_creating_chat">Błąd tworzenia czatu: %1$s</string>
+    <string name="error_creating_group">Błąd tworzenia grupy: %1$s</string>
+    <string name="error_group_name_empty">Wpisz nazwę grupy</string>
+    <string name="error_group_too_few_members">Wybierz przynajmniej %1$d osoby</string>
+    <string name="error_adding_members">Błąd dodawania członków: %1$s</string>
+    <string name="error_removing_member">Błąd usuwania członka: %1$s</string>
+    <string name="error_changing_admin">Błąd zmiany admina: %1$s</string>
+    <string name="error_leaving_group">Błąd opuszczania grupy: %1$s</string>
+    <string name="error_deleting_group">Błąd usuwania grupy: %1$s</string>
 </resources>

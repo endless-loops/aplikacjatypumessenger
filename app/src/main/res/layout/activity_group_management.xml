@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -13,8 +14,10 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="#6200EE"
-        android:titleTextColor="#FFFFFF"
-        android:title="Zarządzanie grupą"/>
+        app:titleTextColor="#FFFFFF"
+        app:title="@string/group_management_title"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationContentDescription="@string/action_back"/>
 
     <!-- Lista członków grupy -->
     <androidx.recyclerview.widget.RecyclerView
@@ -25,12 +28,11 @@
         android:nestedScrollingEnabled="false"
         android:paddingTop="8dp"/>
 
-    <!-- Licznik lub info o zaznaczonych użytkownikach (opcjonalnie) -->
+    <!-- Liczba członków -->
     <TextView
-        android:id="@+id/tv_selected_count"
+        android:id="@+id/memberCountTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text=""
         android:textColor="#000000"
         android:padding="8dp"/>
 
@@ -39,7 +41,7 @@
         android:id="@+id/addMembersButton"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:text="Dodaj członków"
+        android:text="@string/add_members"
         android:textColor="#FFFFFF"
         android:backgroundTint="#6200EE"
         android:layout_marginTop="8dp"/>
@@ -49,8 +51,19 @@
         android:id="@+id/leaveGroupButton"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:text="Opuść grupę"
+        android:text="@string/leave_group"
         android:textColor="#FFFFFF"
         android:backgroundTint="#B00020"
+        android:layout_marginTop="8dp"/>
+
+    <!-- Usunięcie grupy (tylko admin) -->
+    <Button
+        android:id="@+id/deleteGroupButton"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="@string/delete_group"
+        android:textColor="#B00020"
+        android:visibility="gone"
         android:layout_marginTop="8dp"/>
 </LinearLayout>

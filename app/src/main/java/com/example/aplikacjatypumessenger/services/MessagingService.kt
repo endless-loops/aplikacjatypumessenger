@@ -1,146 +1,129 @@
 package com.example.aplikacjatypumessenger.services
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.TaskStackBuilder
+import androidx.core.content.ContextCompat
 import com.example.aplikacjatypumessenger.ChatActivity
+import com.example.aplikacjatypumessenger.GroupChatActivity
 import com.example.aplikacjatypumessenger.MainActivity
 import com.example.aplikacjatypumessenger.R
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.aplikacjatypumessenger.utils.Extras
+import com.example.aplikacjatypumessenger.utils.appContainer
+import com.example.aplikacjatypumessenger.utils.runSuspendCatching
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import kotlinx.coroutines.launch
 
+/**
+ * Odbiera powiadomienia wysyłane przez Cloud Function `sendMessageNotification`
+ * (payload typu "data": chatId, messageId, senderId, title, body, isGroup).
+ */
 class MessagingService : FirebaseMessagingService() {
 
-    companion object {
-        private const val TAG = "MessagingService"
-        private const val CHANNEL_ID = "chat_notifications"
-        private const val CHANNEL_NAME = "Chat Messages"
-        private const val CHANNEL_DESCRIPTION = "Notifications for new chat messages"
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-        createNotificationChannel()
-    }
+    private val container get() = applicationContext.appContainer
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "Refreshed token: $token")
-        saveTokenToFirestore(token)
+        val userId = container.authRepository.currentUserId ?: return
+        container.applicationScope.launch {
+            runSuspendCatching { container.userRepository.updateFcmToken(userId, token) }
+                .onFailure { Log.w(TAG, "Nie udało się zapisać tokenu FCM", it) }
+        }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
+        val data = remoteMessage.data
+        val chatId = data[KEY_CHAT_ID].orEmpty()
+        if (chatId.isEmpty() || container.authRepository.currentUserId == null) return
 
-        Log.d(TAG, "From: ${remoteMessage.from}")
-        Log.d(TAG, "Message data: ${remoteMessage.data}")
-
-        if (remoteMessage.data.isNotEmpty()) {
-            handleDataMessage(remoteMessage.data)
+        data[KEY_MESSAGE_ID]?.takeIf { it.isNotEmpty() }?.let { messageId ->
+            container.applicationScope.launch {
+                runSuspendCatching { container.messageRepository.markAsDelivered(messageId) }
+                    .onFailure { Log.w(TAG, "Nie udało się oznaczyć wiadomości jako dostarczonej", it) }
+            }
         }
 
-        remoteMessage.notification?.let {
-            Log.d(TAG, "Notification body: ${it.body}")
-            showNotification(
-                title = it.title ?: "Nowa wiadomość",
-                body = it.body ?: "",
-                data = remoteMessage.data
-            )
-        }
-    }
+        // Użytkownik ma ten czat otwarty - wiadomość widzi od razu
+        if (container.activeChatTracker.activeChatId == chatId) return
 
-    private fun handleDataMessage(data: Map<String, String>) {
-        val title = data["senderName"] ?: "Nowa wiadomość"
-        val body = data["body"] ?: ""
-        val chatId = data["chatId"] ?: ""
-
-        // Wyświetl powiadomienie tylko jeśli użytkownik nie jest aktualnie w czacie
-        if (!isUserInChat(chatId)) {
-            showNotification(title, body, data)
-        }
-    }
-
-    private fun showNotification(title: String, body: String, data: Map<String, String>) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val intent = createNotificationIntent(data)
-
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        showNotification(
+            chatId = chatId,
+            senderId = data[KEY_SENDER_ID].orEmpty(),
+            isGroup = data[KEY_IS_GROUP].toBoolean(),
+            title = data[KEY_TITLE] ?: remoteMessage.notification?.title ?: getString(R.string.notification_default_title),
+            body = data[KEY_BODY] ?: remoteMessage.notification?.body.orEmpty()
         )
+    }
 
-        val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun showNotification(chatId: String, senderId: String, isGroup: Boolean, title: String, body: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        createNotificationChannel()
+
+        val chatIntent = if (isGroup) {
+            Intent(this, GroupChatActivity::class.java)
+        } else {
+            Intent(this, ChatActivity::class.java).putExtra(Extras.OTHER_USER_ID, senderId)
+        }.putExtra(Extras.CHAT_ID, chatId)
+
+        // Osobny requestCode dla każdego czatu, inaczej powiadomienia nadpisywałyby sobie extras
+        val pendingIntent = TaskStackBuilder.create(this)
+            .addNextIntent(Intent(this, MainActivity::class.java))
+            .addNextIntent(chatIntent)
+            .getPendingIntent(notificationIdFor(chatId), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .build()
 
-        val notificationId = data["chatId"]?.hashCode() ?: System.currentTimeMillis().toInt()
-        notificationManager.notify(notificationId, notificationBuilder.build())
-    }
-
-    private fun createNotificationIntent(data: Map<String, String>): Intent {
-        val chatId = data["chatId"]
-        val otherUserId = data["senderId"]
-
-        return if (!chatId.isNullOrEmpty() && !otherUserId.isNullOrEmpty()) {
-            Intent(this, ChatActivity::class.java).apply {
-                putExtra("chatId", chatId)
-                putExtra("otherUserId", otherUserId)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
-        } else {
-            Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
-        }
+        NotificationManagerCompat.from(this).notify(notificationIdFor(chatId), notification)
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = CHANNEL_DESCRIPTION
-                enableLights(true)
-                enableVibration(true)
-                setShowBadge(true)
-            }
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.notification_channel_name),
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = getString(R.string.notification_channel_description)
+            enableVibration(true)
+            setShowBadge(true)
         }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun saveTokenToFirestore(token: String) {
-        val currentUser = FirebaseAuth.getInstance().currentUser ?: return
-        FirebaseFirestore.getInstance()
-            .collection("users")
-            .document(currentUser.uid)
-            .update("fcmToken", token)
-            .addOnSuccessListener {
-                Log.d(TAG, "Token zapisany w Firestore")
-            }
-            .addOnFailureListener { e ->
-                Log.w(TAG, "Błąd zapisu tokenu", e)
-            }
-    }
+    companion object {
+        private const val TAG = "MessagingService"
+        private const val CHANNEL_ID = "chat_notifications"
+        private const val KEY_CHAT_ID = "chatId"
+        private const val KEY_MESSAGE_ID = "messageId"
+        private const val KEY_SENDER_ID = "senderId"
+        private const val KEY_TITLE = "title"
+        private const val KEY_BODY = "body"
+        private const val KEY_IS_GROUP = "isGroup"
 
-    private fun isUserInChat(chatId: String): Boolean {
-        val sharedPref = getSharedPreferences("chat_prefs", Context.MODE_PRIVATE)
-        val currentChatId = sharedPref.getString("current_chat_id", "")
-        return currentChatId == chatId
+        /** Jedno powiadomienie na czat; ekran czatu usuwa je po otwarciu. */
+        fun notificationIdFor(chatId: String): Int = chatId.hashCode()
     }
 }

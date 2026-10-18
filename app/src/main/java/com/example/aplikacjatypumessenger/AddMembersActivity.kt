@@ -1,141 +1,67 @@
 package com.example.aplikacjatypumessenger
 
-import android.app.Activity
-import android.app.ProgressDialog
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.view.MenuItem
-import android.widget.*
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.example.aplikacjatypumessenger.adapters.AddMembersAdapter
-import com.example.aplikacjatypumessenger.models.User
-import com.google.android.material.card.MaterialCardView
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import com.example.aplikacjatypumessenger.adapters.SelectableUserAdapter
+import com.example.aplikacjatypumessenger.databinding.ActivityAddMembersBinding
+import com.example.aplikacjatypumessenger.utils.Extras
+import com.example.aplikacjatypumessenger.utils.UiText
+import com.example.aplikacjatypumessenger.utils.collectWhenStarted
+import com.example.aplikacjatypumessenger.utils.showToast
+import com.example.aplikacjatypumessenger.viewmodels.AddMembersEvent
+import com.example.aplikacjatypumessenger.viewmodels.AddMembersViewModel
 
 class AddMembersActivity : AppCompatActivity() {
 
-    private lateinit var groupId: String
-    private lateinit var adapter: AddMembersAdapter
-    private val selectedMembers = mutableSetOf<String>()
-    private val allUsers = mutableListOf<User>()
-
-    private lateinit var auth: FirebaseAuth
-    private lateinit var db: FirebaseFirestore
+    private lateinit var binding: ActivityAddMembersBinding
+    private val viewModel: AddMembersViewModel by viewModels { AddMembersViewModel.Factory }
+    private val adapter = SelectableUserAdapter { item -> viewModel.toggle(item.user.id) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_add_members)
-
-        auth = Firebase.auth
-        db = Firebase.firestore
-
-        groupId = intent.getStringExtra("chatId") ?: ""  // używamy chatId
-        val groupName = intent.getStringExtra("GROUP_NAME") ?: "Grupa"
-
-        setupToolbar(groupName)
-        setupViews()
-        loadAvailableUsers()
-    }
-
-    private fun setupToolbar(groupName: String) {
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.apply {
-            title = "Dodaj członków do $groupName"
-            setDisplayHomeAsUpEnabled(true)
-            setDisplayShowHomeEnabled(true)
+        if (intent.getStringExtra(Extras.CHAT_ID).isNullOrEmpty()) {
+            showToast(UiText.Res(R.string.error_missing_chat_data))
+            finish()
+            return
         }
-    }
 
-    private fun setupViews() {
-        val searchView = findViewById<SearchView>(R.id.search_view)
-        val recyclerView = findViewById<RecyclerView>(R.id.recycler_view)
-        val btnAddMembers = findViewById<Button>(R.id.btn_add_members)
+        binding = ActivityAddMembersBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = AddMembersAdapter(allUsers) { user, isSelected ->
-            if (isSelected) selectedMembers.add(user.id) else selectedMembers.remove(user.id)
-            updateAddButtonState()
-        }
-        recyclerView.adapter = adapter
-
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+        binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.recyclerView.layoutManager = LinearLayoutManager(this)
+        binding.recyclerView.adapter = adapter
+        binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?) = false
             override fun onQueryTextChange(newText: String?): Boolean {
-                filterUsers(newText.orEmpty())
+                viewModel.setQuery(newText.orEmpty())
                 return true
             }
         })
+        binding.btnAddMembers.setOnClickListener { viewModel.addSelected() }
 
-        btnAddMembers.setOnClickListener { addSelectedMembersToGroup() }
-        updateAddButtonState()
-    }
-
-    private fun loadAvailableUsers() {
-        val currentUserId = auth.currentUser?.uid ?: return
-        db.collection("users")
-            .get()
-            .addOnSuccessListener { snapshot ->
-                allUsers.clear()
-                snapshot.documents.forEach { doc ->
-                    val user = doc.toObject(User::class.java)
-                    if (user != null && user.id != currentUserId) {
-                        allUsers.add(user)
-                    }
+        collectWhenStarted(viewModel.uiState) { state ->
+            binding.toolbar.title = state.groupName?.let { getString(R.string.add_members_to, it) }
+                ?: getString(R.string.add_members)
+            adapter.submitList(state.users)
+            binding.btnAddMembers.isEnabled = state.selectedCount > 0 && !state.isSaving
+            binding.btnAddMembers.text = when {
+                state.isSaving -> getString(R.string.adding_members)
+                state.selectedCount > 0 -> getString(R.string.add_members_count, state.selectedCount)
+                else -> getString(R.string.add_members)
+            }
+        }
+        collectWhenStarted(viewModel.events) { event ->
+            when (event) {
+                is AddMembersEvent.ShowMessage -> showToast(event.text, long = true)
+                is AddMembersEvent.Done -> {
+                    showToast(UiText.Res(R.string.members_added, listOf(event.addedCount)))
+                    finish()
                 }
-                adapter.updateData(allUsers)
             }
-    }
-
-    private fun filterUsers(query: String) {
-        val filtered = if (query.isEmpty()) allUsers else
-            allUsers.filter { it.username.contains(query, ignoreCase = true) || it.status.contains(query, ignoreCase = true) }
-        adapter.updateData(filtered)
-    }
-
-    private fun updateAddButtonState() {
-        val btnAddMembers = findViewById<Button>(R.id.btn_add_members)
-        btnAddMembers.isEnabled = selectedMembers.isNotEmpty()
-        btnAddMembers.text = if (selectedMembers.isNotEmpty()) "Dodaj (${selectedMembers.size})" else "Dodaj członków"
-    }
-
-    private fun addSelectedMembersToGroup() {
-        if (selectedMembers.isEmpty()) return
-
-        val progressDialog = ProgressDialog(this).apply {
-            setTitle("Dodawanie członków")
-            setMessage("Proszę czekać...")
-            setCancelable(false)
-            show()
         }
-
-        val chatRef = db.collection("chats").document(groupId)
-        chatRef.update("participants", com.google.firebase.firestore.FieldValue.arrayUnion(*selectedMembers.toTypedArray()))
-            .addOnSuccessListener {
-                progressDialog.dismiss()
-                Toast.makeText(this, "${selectedMembers.size} członków dodano!", Toast.LENGTH_SHORT).show()
-                setResult(Activity.RESULT_OK)
-                finish()
-            }
-            .addOnFailureListener {
-                progressDialog.dismiss()
-                Toast.makeText(this, "Błąd dodawania członków", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home) {
-            onBackPressed()
-            return true
-        }
-        return super.onOptionsItemSelected(item)
     }
 }
