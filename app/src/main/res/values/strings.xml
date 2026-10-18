@@ -9,8 +9,8 @@
     <string name="username_hint">Nazwa użytkownika</string>
     <string name="login_button">Zaloguj się</string>
     <string name="register_button">Zarejestruj się</string>
-    <string name="no_account">Nie masz konta? </string>
-    <string name="have_account">Masz już konto? </string>
+    <string name="no_account">"Nie masz konta? "</string>
+    <string name="have_account">"Masz już konto? "</string>
     <string name="forgot_password">Zapomniałeś hasła?</string>
     <string name="forgot_password_prompt">Wprowadź swój adres email, aby zresetować hasło:</string>
     <string name="reset_password_title">Resetowanie hasła</string>
