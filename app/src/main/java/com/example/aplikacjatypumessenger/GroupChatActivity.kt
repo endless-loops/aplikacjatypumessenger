@@ -2,20 +2,22 @@ package com.example.aplikacjatypumessenger
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.aplikacjatypumessenger.adapters.MessageAdapter
 import com.example.aplikacjatypumessenger.databinding.ActivityGroupChatBinding
 import com.example.aplikacjatypumessenger.models.Message
+import com.example.aplikacjatypumessenger.services.MessagingService
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
 
 class GroupChatActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityGroupChatBinding
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
@@ -23,22 +25,34 @@ class GroupChatActivity : AppCompatActivity() {
     private var messageList = mutableListOf<Message>()
     private var chatId: String = ""
     private var isGroup: Boolean = false
+    private var messageListener: ListenerRegistration? = null
+
+    companion object {
+        private const val TAG = "GroupChatActivity"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityGroupChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        auth = Firebase.auth
-        db = Firebase.firestore
+        auth = FirebaseAuth.getInstance()
+        db = FirebaseFirestore.getInstance()
 
         chatId = intent.getStringExtra("chatId") ?: ""
         isGroup = intent.getBooleanExtra("isGroup", false)
 
+        if (chatId.isEmpty()) {
+            Log.e(TAG, "Brak chatId!")
+            Toast.makeText(this, "Błąd: brak ID czatu", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
         setupViews()
+        loadGroupInfo()
         loadMessages()
         setupClickListeners()
-        loadGroupInfo()
     }
 
     private fun setupViews() {
@@ -56,69 +70,82 @@ class GroupChatActivity : AppCompatActivity() {
                 .get()
                 .addOnSuccessListener { document ->
                     val groupName = document.getString("groupName") ?: "Grupa"
-                    binding.chatUserNameTextView.text = groupName
+                    binding.tvGroupMembers.text = "Grupa: $groupName"
                 }
         }
     }
 
     private fun loadMessages() {
-        if (chatId.isEmpty()) return
-
-        db.collection("messages")
+        messageListener?.remove()
+        messageListener = db.collection("messages")
             .whereEqualTo("chatId", chatId)
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    Log.e(TAG, "Błąd ładowania wiadomości", error)
                     Toast.makeText(this, "Błąd ładowania wiadomości", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
 
-                messageList.clear()
-                snapshot?.documents?.forEach { document ->
-                    val message = document.toObject(Message::class.java)
-                    message?.let { messageList.add(it) }
-                }
-                messageAdapter.notifyDataSetChanged()
-
-                if (messageList.isNotEmpty()) {
-                    binding.messagesRecyclerView.smoothScrollToPosition(messageList.size - 1)
+                snapshot?.documentChanges?.forEach { change ->
+                    val message = change.document.toObject(Message::class.java)
+                    when (change.type) {
+                        DocumentChange.Type.ADDED -> {
+                            messageList.add(message)
+                            messageAdapter.notifyItemInserted(messageList.size - 1)
+                            binding.messagesRecyclerView.scrollToPosition(messageList.size - 1)
+                        }
+                        DocumentChange.Type.MODIFIED -> {
+                            val index = messageList.indexOfFirst { it.id == message.id }
+                            if (index != -1) {
+                                messageList[index] = message
+                                messageAdapter.notifyItemChanged(index)
+                            }
+                        }
+                        DocumentChange.Type.REMOVED -> {
+                            val index = messageList.indexOfFirst { it.id == message.id }
+                            if (index != -1) {
+                                messageList.removeAt(index)
+                                messageAdapter.notifyItemRemoved(index)
+                            }
+                        }
+                    }
                 }
             }
     }
 
     private fun setupClickListeners() {
-        binding.sendButton.setOnClickListener {
-            val messageText = binding.messageEditText.text?.toString()?.trim()
+        binding.btnSend.setOnClickListener {
+            val messageText = binding.getMessage.text?.toString()?.trim()
             if (!messageText.isNullOrEmpty()) {
                 sendMessage(messageText)
-                binding.messageEditText.text?.clear()
+                binding.getMessage.text?.clear()
             }
         }
 
-        binding.backButton.setOnClickListener {
+        binding.toolbar.setNavigationOnClickListener {
             finish()
-        }
-
-        binding.groupInfoButton.setOnClickListener {
-            if (isGroup) {
-                showGroupInfo()
-            }
         }
     }
 
     private fun sendMessage(text: String) {
         val currentUserId = auth.currentUser?.uid ?: return
         val messageId = db.collection("messages").document().id
+        val timestamp = System.currentTimeMillis()
 
         val message = Message(
             id = messageId,
             senderId = currentUserId,
             chatId = chatId,
             text = text,
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestamp,
             type = "text",
-            isGroupMessage = isGroup  // 👈 Nowe pole
+            isGroupMessage = isGroup
         )
+
+        messageList.add(message)
+        messageAdapter.notifyItemInserted(messageList.size - 1)
+        binding.messagesRecyclerView.scrollToPosition(messageList.size - 1)
 
         db.collection("messages").document(messageId)
             .set(message)
@@ -126,37 +153,23 @@ class GroupChatActivity : AppCompatActivity() {
                 updateChatLastMessage(message)
                 sendPushNotifications(message)
             }
-            .addOnFailureListener {
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Błąd wysyłania wiadomości", e)
                 Toast.makeText(this, "Błąd wysyłania wiadomości", Toast.LENGTH_SHORT).show()
             }
     }
 
     private fun sendPushNotifications(message: Message) {
-        // Pobierz tokeny wszystkich uczestników czatu i wyślij powiadomienia
         db.collection("chats").document(chatId)
             .get()
-            .addOnSuccessListener { document ->
-                val participants = document.get("participants") as? List<String> ?: emptyList()
-                val currentUser = auth.currentUser?.uid ?: return@addOnSuccessListener
+            .addOnSuccessListener { doc ->
+                val participants = doc.get("participants") as? List<String> ?: emptyList()
+                val currentUserId = auth.currentUser?.uid ?: return@addOnSuccessListener
 
                 participants.forEach { userId ->
-                    if (userId != currentUser) {
-                        sendNotificationToUser(userId, message)
+                    if (userId != currentUserId) {
+                        // Tutaj wywołaj MessagingService lub backend do wysyłki FCM
                     }
-                }
-            }
-    }
-
-    private fun sendNotificationToUser(userId: String, message: Message) {
-        db.collection("users").document(userId)
-            .get()
-            .addOnSuccessListener { document ->
-                val fcmToken = document.getString("fcmToken")
-                val username = document.getString("username") ?: "Użytkownik"
-
-                fcmToken?.let { token ->
-                    // Tutaj wyślij powiadomienie FCM do użytkownika
-                    // (wymaga backendu lub Cloud Functions)
                 }
             }
     }
@@ -174,5 +187,10 @@ class GroupChatActivity : AppCompatActivity() {
             .addOnFailureListener {
                 Toast.makeText(this, "Błąd aktualizacji czatu", Toast.LENGTH_SHORT).show()
             }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        messageListener?.remove()
     }
 }

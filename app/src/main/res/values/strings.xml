@@ -11,4 +11,6 @@
     <string name="forgot_password">Zapomniałeś hasła?</string>
     <string name="send_message">Wyślij</string>
     <string name="type_message">Wpisz wiadomość...</string>
+    <string name="user_avatar">Avatar użytkownika</string>
+    <string name="options">Opcje</string>
 </resources>

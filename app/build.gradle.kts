@@ -57,6 +57,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-analytics")
 
     // Glide for image loading
     implementation("com.github.bumptech.glide:glide:5.0.4")

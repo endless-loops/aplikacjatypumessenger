@@ -2,6 +2,7 @@ package com.example.aplikacjatypumessenger
 
 import android.os.Bundle
 import android.util.Log
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,6 +18,8 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import java.util.*
+import kotlin.concurrent.schedule
 
 class ChatActivity : AppCompatActivity() {
 
@@ -30,9 +33,14 @@ class ChatActivity : AppCompatActivity() {
     private var otherUserId = ""
     private var messageListener: ListenerRegistration? = null
 
+    // 🔹 Timer do śledzenia aktywności
+    private val inactivityTimer = Timer()
+    private var inactivityTask: TimerTask? = null
+
     companion object {
         private const val TAG = "ChatActivity"
     }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,7 +55,6 @@ class ChatActivity : AppCompatActivity() {
         chatId = intent.getStringExtra("chatId") ?: ""
         otherUserId = intent.getStringExtra("otherUserId") ?: ""
 
-        // Validate required data
         if (chatId.isEmpty() || otherUserId.isEmpty()) {
             Log.e(TAG, "Missing chatId or otherUserId")
             showError("Błąd: Brak wymaganych danych czatu")
@@ -55,7 +62,6 @@ class ChatActivity : AppCompatActivity() {
             return
         }
 
-        // Check if user is authenticated
         if (auth.currentUser == null) {
             Log.e(TAG, "User not authenticated")
             showError("Błąd: Użytkownik nie jest zalogowany")
@@ -71,6 +77,9 @@ class ChatActivity : AppCompatActivity() {
 
         // Mark messages as delivered when opening chat
         messageStatusManager.markMessagesAsDelivered(chatId, auth.currentUser?.uid ?: "")
+
+        // Start tracking activity
+        setupActivityTracking()
     }
 
     private fun setupViews() {
@@ -79,13 +88,39 @@ class ChatActivity : AppCompatActivity() {
 
         binding.messagesRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@ChatActivity).also {
-                it.stackFromEnd = true // Start from bottom
+                it.stackFromEnd = true
             }
             adapter = messageAdapter
         }
 
         loadOtherUserInfo()
     }
+
+    private fun setupActivityTracking() {
+        resetInactivityTimer()
+    }
+
+    private fun resetInactivityTimer() {
+        inactivityTask?.cancel()
+        inactivityTask = inactivityTimer.schedule(5 * 60 * 1000) { // 5 minut
+            runOnUiThread {
+                setUserAway(auth.currentUser?.uid ?: return@runOnUiThread)
+            }
+        }
+    }
+
+    private fun setUserAway(userId: String) {
+        db.collection("users").document(userId)
+            .update("status", "away", "lastSeen", System.currentTimeMillis())
+            .addOnSuccessListener { Log.d(TAG, "User $userId set to away") }
+            .addOnFailureListener { Log.e(TAG, "Failed to set user away", it) }
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
+        resetInactivityTimer()
+        return super.dispatchTouchEvent(ev)
+    }
+
 
     private fun loadOtherUserInfo() {
         if (otherUserId.isNotEmpty()) {

@@ -10,10 +10,25 @@ data class Message(
     val type: String = "text", // text, image, video
     val mediaUrl: String = "",
     val seen: Boolean = false,
-    var status: String = "", // "wysyłanie", "wysłane", "dostarczone", "przeczytane"
+    var status: String = "sending", // "wysyłanie", "wysłane", "dostarczone", "przeczytane"
     val deliveredAt: Long = 0L,
-    val readAt: Long = 0L
+    val readAt: Long = 0L,
+    val isGroupMessage: Boolean = false
 ) {
     // No-arg constructor for Firestore
-    constructor() : this("", "", "", "", "", 0L, "text", "sending", false)
+    constructor() : this(
+        id = "",
+        senderId = "",
+        receiverId = "",
+        chatId = "",
+        text = "",
+        timestamp = 0L,
+        type = "text",
+        mediaUrl = "",
+        seen = false,
+        status = "sending",
+        deliveredAt = 0L,
+        readAt = 0L,
+        isGroupMessage = false
+    )
 }

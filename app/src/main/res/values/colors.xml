@@ -10,4 +10,9 @@
     <color name="primaryColor">#6200EE</color>
     <color name="gray">#808080</color>
     <color name="blue">#2196F3</color>
+    <color name="primaryText">#212121</color>
+    <color name="secondaryText">#757575</color>
+    <color name="online_green">#FF4CAF50</color>
+    <color name="offline_gray">#FF9E9E9E</color>
+    <color name="away_orange">#FFFF9800</color>
 </resources>

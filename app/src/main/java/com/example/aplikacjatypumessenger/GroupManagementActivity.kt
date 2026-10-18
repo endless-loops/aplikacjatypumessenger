@@ -3,7 +3,6 @@ package com.example.aplikacjatypumessenger
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.aplikacjatypumessenger.adapters.GroupMemberAdapter
@@ -17,6 +16,7 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
 class GroupManagementActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityGroupManagementBinding
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
@@ -24,6 +24,7 @@ class GroupManagementActivity : AppCompatActivity() {
     private var memberList = mutableListOf<User>()
     private var chatId: String = ""
     private var isAdmin: Boolean = false
+    private var currentUserId: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,7 +33,10 @@ class GroupManagementActivity : AppCompatActivity() {
 
         auth = Firebase.auth
         db = Firebase.firestore
+        currentUserId = auth.currentUser?.uid ?: ""
         chatId = intent.getStringExtra("chatId") ?: ""
+
+        if (chatId.isEmpty()) return
 
         setupViews()
         loadGroupMembers()
@@ -41,7 +45,7 @@ class GroupManagementActivity : AppCompatActivity() {
     }
 
     private fun setupViews() {
-        memberAdapter = GroupMemberAdapter(memberList, isAdmin) { user, action ->
+        memberAdapter = GroupMemberAdapter(memberList, isAdmin, currentUserId) { user, action ->
             when (action) {
                 "remove" -> removeMember(user.id)
                 "make_admin" -> makeAdmin(user.id)
@@ -55,7 +59,6 @@ class GroupManagementActivity : AppCompatActivity() {
     }
 
     private fun checkAdminStatus() {
-        val currentUserId = auth.currentUser?.uid ?: return
         db.collection("chats").document(chatId)
             .get()
             .addOnSuccessListener { document ->
@@ -63,10 +66,7 @@ class GroupManagementActivity : AppCompatActivity() {
                 isAdmin = adminId == currentUserId
                 memberAdapter.isAdmin = isAdmin
                 memberAdapter.notifyDataSetChanged()
-
-                if (isAdmin) {
-                    binding.addMembersButton.visibility = View.VISIBLE
-                }
+                binding.addMembersButton.visibility = if (isAdmin) View.VISIBLE else View.GONE
             }
     }
 
@@ -97,22 +97,13 @@ class GroupManagementActivity : AppCompatActivity() {
     private fun removeMember(userId: String) {
         db.collection("chats").document(chatId)
             .update("participants", FieldValue.arrayRemove(userId))
-            .addOnSuccessListener {
-                Toast.makeText(this, "Użytkownik usunięty", Toast.LENGTH_SHORT).show()
-                loadGroupMembers()
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Błąd usuwania", Toast.LENGTH_SHORT).show()
-            }
+            .addOnSuccessListener { loadGroupMembers() }
     }
 
     private fun makeAdmin(userId: String) {
         db.collection("chats").document(chatId)
             .update("groupAdmin", userId)
-            .addOnSuccessListener {
-                Toast.makeText(this, "Nowy administrator", Toast.LENGTH_SHORT).show()
-                checkAdminStatus()
-            }
+            .addOnSuccessListener { checkAdminStatus() }
     }
 
     private fun setupClickListeners() {
@@ -123,13 +114,10 @@ class GroupManagementActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        binding.leaveGroupButton.setOnClickListener {
-            leaveGroup()
-        }
+        binding.leaveGroupButton.setOnClickListener { leaveGroup() }
     }
 
     private fun leaveGroup() {
-        val currentUserId = auth.currentUser?.uid ?: return
         removeMember(currentUserId)
         finish()
     }

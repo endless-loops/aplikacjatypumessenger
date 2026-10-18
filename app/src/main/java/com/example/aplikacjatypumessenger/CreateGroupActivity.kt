@@ -20,7 +20,6 @@ class CreateGroupActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
     private lateinit var userAdapter: UserAdapter
-    private var userList = mutableListOf<User>()
     private val selectedUsers = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,13 +30,13 @@ class CreateGroupActivity : AppCompatActivity() {
         auth = Firebase.auth
         db = Firebase.firestore
 
-        setupViews()
+        setupRecyclerView()
         loadUsers()
         setupClickListeners()
     }
 
-    private fun setupViews() {
-        userAdapter = UserAdapter(userList) { user ->
+    private fun setupRecyclerView() {
+        userAdapter = UserAdapter { user ->
             toggleUserSelection(user)
         }
 
@@ -53,10 +52,6 @@ class CreateGroupActivity : AppCompatActivity() {
         } else {
             selectedUsers.add(user.id)
         }
-        updateSelectedCount()
-    }
-
-    private fun updateSelectedCount() {
         binding.selectedCountText.text = "Wybrano: ${selectedUsers.size} użytkowników"
     }
 
@@ -68,33 +63,27 @@ class CreateGroupActivity : AppCompatActivity() {
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
 
-                userList.clear()
-                snapshot?.documents?.forEach { document ->
-                    val user = document.toObject(User::class.java)
-                    user?.let { userList.add(it) }
-                }
-                userAdapter.notifyDataSetChanged()
+                val users = snapshot?.toObjects(User::class.java) ?: emptyList()
+                userAdapter.submitList(users)
             }
     }
 
     private fun setupClickListeners() {
+        binding.cancelButton.setOnClickListener {
+            finish()
+        }
+
         binding.createGroupButton.setOnClickListener {
-            val groupName = binding.groupNameEditText.text?.toString()?.trim()
-            if (groupName.isNullOrEmpty()) {
+            val groupName = binding.groupNameEditText?.text?.toString()?.trim() ?: ""
+            if (groupName.isEmpty()) {
                 Toast.makeText(this, "Wpisz nazwę grupy", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             if (selectedUsers.size < 2) {
                 Toast.makeText(this, "Wybierz przynajmniej 2 osoby", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             createGroupChat(groupName)
-        }
-
-        binding.cancelButton.setOnClickListener {
-            finish()
         }
     }
 
@@ -102,9 +91,7 @@ class CreateGroupActivity : AppCompatActivity() {
         val currentUserId = auth.currentUser?.uid ?: return
         val chatId = db.collection("chats").document().id
 
-        val participants = selectedUsers.toMutableList().apply {
-            add(currentUserId)  // Dodaj twórcę grupy
-        }
+        val participants = selectedUsers.toMutableList().apply { add(currentUserId) }
 
         val chat = Chat(
             id = chatId,
@@ -119,19 +106,16 @@ class CreateGroupActivity : AppCompatActivity() {
             .set(chat)
             .addOnSuccessListener {
                 Toast.makeText(this, "Grupa utworzona!", Toast.LENGTH_SHORT).show()
-                openGroupChat(chatId)
+                startActivity(
+                    Intent(this, GroupChatActivity::class.java).apply {
+                        putExtra("chatId", chatId)
+                        putExtra("isGroup", true)
+                    }
+                )
+                finish()
             }
             .addOnFailureListener {
                 Toast.makeText(this, "Błąd tworzenia grupy", Toast.LENGTH_SHORT).show()
             }
-    }
-
-    private fun openGroupChat(chatId: String) {
-        val intent = Intent(this, GroupChatActivity::class.java).apply {
-            putExtra("chatId", chatId)
-            putExtra("isGroup", true)
-        }
-        startActivity(intent)
-        finish()
     }
 }

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <!-- Toolbar -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#6200EE"
+        android:titleTextColor="#FFFFFF"
+        android:title="Dodaj członków"/>
+
+    <!-- Search -->
+    <androidx.appcompat.widget.SearchView
+        android:id="@+id/search_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:queryHint="Szukaj użytkowników"
+        android:iconifiedByDefault="false"
+        android:layout_margin="8dp"/>
+
+    <!-- Lista użytkowników -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:nestedScrollingEnabled="false"/>
+
+    <!-- Przycisk dodania wybranych użytkowników -->
+    <Button
+        android:id="@+id/btn_add_members"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="Dodaj członków"
+        android:layout_margin="8dp"
+        android:backgroundTint="#6200EE"
+        android:textColor="#FFFFFF"
+        android:enabled="false"/>
+
+</LinearLayout>
