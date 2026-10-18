@@ -15,6 +15,8 @@
 local.properties
 
 # Firebase
+# Konfiguracja z kluczem API - każdy pobiera własną z konsoli Firebase
+app/google-services.json
 functions/node_modules
 .firebase/
 firebase-debug.log
