@@ -5,7 +5,6 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
     android:padding="16dp">
 
     <!-- Toolbar -->
@@ -13,8 +12,8 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="#6200EE"
-        app:titleTextColor="#FFFFFF"
+        android:background="?attr/colorPrimary"
+        app:titleTextColor="?attr/colorOnPrimary"
         app:title="@string/group_management_title"
         app:navigationIcon="@drawable/ic_arrow_back"
         app:navigationContentDescription="@string/action_back"/>
@@ -33,7 +32,6 @@
         android:id="@+id/memberCountTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#000000"
         android:padding="8dp"/>
 
     <!-- Przycisk dodania nowych członków -->

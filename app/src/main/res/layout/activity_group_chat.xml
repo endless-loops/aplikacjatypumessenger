@@ -4,8 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@android:color/white">
+    android:orientation="vertical">
 
     <!-- Pasek narzędzi -->
     <androidx.appcompat.widget.Toolbar
@@ -14,7 +13,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         app:title="@string/group_chat_title"
-        app:titleTextColor="@android:color/white"
+        app:titleTextColor="?attr/colorOnPrimary"
         app:navigationIcon="@drawable/ic_arrow_back"
         app:navigationContentDescription="@string/action_back"/>
 
@@ -26,8 +25,8 @@
         android:padding="8dp"
         tools:text="Uczestnicy:"
         android:textSize="14sp"
-        android:textColor="#333333"
-        android:background="#F5F5F5" />
+        android:textColor="?attr/colorOnSurfaceVariant"
+        android:background="?attr/colorSurfaceVariant" />
 
     <!-- Lista wiadomości -->
     <androidx.recyclerview.widget.RecyclerView
@@ -45,7 +44,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="8dp"
-        android:background="#EEEEEE">
+        android:background="?attr/colorSurface">
 
         <EditText
             android:id="@+id/getMessage"
@@ -54,7 +53,6 @@
             android:layout_weight="1"
             android:hint="@string/type_message"
             android:padding="10dp"
-            android:background="@android:drawable/edit_text"
             android:inputType="textCapSentences|textMultiLine"
             android:imeOptions="actionSend"
             android:scrollHorizontally="false"
@@ -67,6 +65,7 @@
             android:layout_marginStart="8dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_send"
+            app:tint="?attr/colorPrimary"
             android:contentDescription="@string/send_message" />
     </LinearLayout>
 

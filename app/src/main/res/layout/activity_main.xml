@@ -12,7 +12,7 @@
         android:background="?attr/colorPrimary"
         android:elevation="4dp"
         app:title="Messenger App"
-        app:titleTextColor="@android:color/white" />
+        app:titleTextColor="?attr/colorOnPrimary" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -32,7 +32,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
-                android:background="?attr/colorPrimarySurface">
+                android:background="?attr/colorPrimary">
 
                 <TextView
                     android:id="@+id/chatsHeaderTextView"
@@ -88,7 +88,7 @@
                 android:textStyle="bold"
                 android:padding="16dp"
                 android:textColor="?attr/colorOnPrimary"
-                android:background="?attr/colorPrimarySurface" />
+                android:background="?attr/colorPrimary" />
 
             <androidx.appcompat.widget.SearchView
                 android:id="@+id/userSearchView"
