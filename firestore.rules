@@ -45,8 +45,9 @@ service cloud.firestore {
         );
 
       allow update: if signedIn() && uid() in resource.data.participants && (
-        // Każdy uczestnik aktualizuje podgląd ostatniej wiadomości
-        changedOnly(['lastMessage', 'lastMessageTime'])
+        // Każdy uczestnik aktualizuje podgląd ostatniej wiadomości, ale tylko jako jej nadawca
+        (changedOnly(['lastMessage', 'lastMessageTime'])
+          && request.resource.data.lastMessage.senderId == uid())
         // Admin grupy może zmieniać skład, nazwę i admina
         || (isGroup(resource.data) && isGroup(request.resource.data) && resource.data.groupAdmin == uid())
         // Zwykły członek może tylko opuścić grupę, usuwając samego siebie
@@ -64,11 +65,18 @@ service cloud.firestore {
 
       allow create: if signedIn()
         && request.resource.data.senderId == uid()
-        && isParticipant(request.resource.data.chatId);
+        && isParticipant(request.resource.data.chatId)
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 5000
+        // Nowa wiadomość nie może udawać już dostarczonej ani przeczytanej
+        && request.resource.data.get('seen', false) == false
+        && !(request.resource.data.get('status', '') in ['delivered', 'read']);
 
-      // Uczestnicy mogą zmieniać wyłącznie status dostarczenia/odczytu
+      // Odbiorcy mogą zmieniać wyłącznie status dostarczenia/odczytu
       allow update: if isParticipant(resource.data.chatId)
-        && changedOnly(['status', 'seen', 'deliveredAt', 'readAt']);
+        && resource.data.senderId != uid()
+        && changedOnly(['status', 'seen', 'deliveredAt', 'readAt'])
+        && request.resource.data.status in ['delivered', 'read'];
 
       allow delete: if signedIn() && resource.data.senderId == uid();
     }

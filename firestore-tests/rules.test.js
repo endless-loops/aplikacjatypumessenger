@@ -74,6 +74,16 @@ describe("messages", () => {
   it("recipient marks as read", () =>
     assertSucceeds(updateDoc(doc(db("alice"), "messages", "m1"), { status: "read", seen: true, readAt: 5 })));
   it("cannot edit text of a message", () => assertFails(updateDoc(doc(db("alice"), "messages", "m1"), { text: "zmienione" })));
+  it("sender cannot mark own message as read", () =>
+    assertFails(updateDoc(doc(db("bob"), "messages", "m1"), { status: "read", seen: true, readAt: 5 })));
+  it("status must be delivered or read", () =>
+    assertFails(updateDoc(doc(db("alice"), "messages", "m1"), { status: "hacked" })));
+  it("cannot send an already-read message", () =>
+    assertFails(setDoc(doc(db("alice"), "messages", "m5"), { chatId: "dm", senderId: "alice", text: "x", timestamp: 3, status: "read", seen: true })));
+  it("cannot send oversized text", () =>
+    assertFails(setDoc(doc(db("alice"), "messages", "m6"), { chatId: "dm", senderId: "alice", text: "x".repeat(5001), timestamp: 3, status: "sent" })));
+  it("cannot spoof chat lastMessage as someone else", () =>
+    assertFails(updateDoc(doc(db("alice"), "chats", "dm"), { lastMessage: { text: "fake", senderId: "bob", timestamp: 9 }, lastMessageTime: 9 })));
   it("markAsDelivered transaction", () => {
     const d = db("alice");
     return assertSucceeds(runTransaction(d, async (t) => {
