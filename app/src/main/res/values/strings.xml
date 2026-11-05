@@ -85,6 +85,7 @@
     <string name="action_send">Wyślij</string>
     <string name="action_cancel">Anuluj</string>
     <string name="action_confirm">Potwierdź</string>
+    <string name="action_close">Zamknij</string>
 
     <!-- Powiadomienia -->
     <string name="notification_channel_name">Wiadomości</string>
@@ -118,4 +119,11 @@
     <string name="error_changing_admin">Błąd zmiany admina: %1$s</string>
     <string name="error_leaving_group">Błąd opuszczania grupy: %1$s</string>
     <string name="error_deleting_group">Błąd usuwania grupy: %1$s</string>
+
+    <!-- Potwierdzenia odczytu w grupie -->
+    <string name="read_receipts_title">Informacje o odczycie</string>
+    <string name="read_receipts_read">Przeczytali</string>
+    <string name="read_receipts_not_read">Jeszcze nie przeczytali</string>
+    <string name="read_receipts_nobody">nikt</string>
+    <string name="read_receipts_unavailable">Brak informacji o odczycie dla tej wiadomości</string>
 </resources>

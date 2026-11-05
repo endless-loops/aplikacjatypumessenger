@@ -2,6 +2,7 @@ package com.example.aplikacjatypumessenger.repositories
 
 import com.example.aplikacjatypumessenger.models.Message
 import com.example.aplikacjatypumessenger.models.MessageStatus
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.MetadataChanges
 import com.google.firebase.firestore.Query
@@ -33,8 +34,18 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
                 }
             }
 
-    /** Zapisuje wiadomość i podgląd ostatniej wiadomości czatu w jednej operacji. */
-    suspend fun send(chatId: String, senderId: String, text: String, receiverId: String = "", isGroup: Boolean = false) {
+    /**
+     * Zapisuje wiadomość i podgląd ostatniej wiadomości czatu w jednej operacji.
+     * @param recipients w grupach członkowie, od których zależy status "przeczytana przez wszystkich"
+     */
+    suspend fun send(
+        chatId: String,
+        senderId: String,
+        text: String,
+        receiverId: String = "",
+        isGroup: Boolean = false,
+        recipients: List<String> = emptyList()
+    ) {
         val messageRef = messages.document()
         val timestamp = System.currentTimeMillis()
         val message = Message(
@@ -45,7 +56,8 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
             text = text,
             timestamp = timestamp,
             status = MessageStatus.SENT,
-            isGroupMessage = isGroup
+            isGroupMessage = isGroup,
+            recipients = recipients
         )
         val lastMessage = mapOf(
             "text" to text,
@@ -65,14 +77,23 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
             .await()
     }
 
-    suspend fun markAsRead(messageIds: Collection<String>) {
+    /**
+     * Oznacza wiadomości jako przeczytane i dopisuje czytającego do `readBy`.
+     * `status` zostaje ustawiony także w grupach, żeby starsze wersje aplikacji nadal coś pokazywały.
+     */
+    suspend fun markAsRead(messageIds: Collection<String>, readerId: String) {
         val now = System.currentTimeMillis()
         messageIds.chunked(BATCH_LIMIT).forEach { chunk ->
             val batch = firestore.batch()
             chunk.forEach { id ->
                 batch.update(
                     messages.document(id),
-                    mapOf(FIELD_STATUS to MessageStatus.READ, FIELD_SEEN to true, FIELD_READ_AT to now)
+                    mapOf(
+                        FIELD_STATUS to MessageStatus.READ,
+                        FIELD_SEEN to true,
+                        FIELD_READ_AT to now,
+                        FIELD_READ_BY to FieldValue.arrayUnion(readerId)
+                    )
                 )
             }
             batch.commit().await()
@@ -100,6 +121,7 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
         const val FIELD_SEEN = "seen"
         const val FIELD_READ_AT = "readAt"
         const val FIELD_DELIVERED_AT = "deliveredAt"
+        const val FIELD_READ_BY = "readBy"
         const val BATCH_LIMIT = 500
     }
 }

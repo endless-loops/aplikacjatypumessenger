@@ -27,7 +27,7 @@ fun CoroutineScope.launchReadReceipts(
         if (newIds.isEmpty()) return@collect
         readRequested += newIds
         launch {
-            runSuspendCatching { messageRepository.markAsRead(newIds) }
+            runSuspendCatching { messageRepository.markAsRead(newIds, currentUserId) }
                 .onFailure { readRequested -= newIds.toSet() }
         }
     }

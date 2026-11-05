@@ -5,7 +5,10 @@ import com.example.aplikacjatypumessenger.models.Message
 import com.example.aplikacjatypumessenger.models.MessageStatus
 import com.example.aplikacjatypumessenger.models.User
 import com.example.aplikacjatypumessenger.models.UserStatus
+import com.example.aplikacjatypumessenger.viewmodels.ReadReceipts
 import com.example.aplikacjatypumessenger.viewmodels.buildChatListItems
+import com.example.aplikacjatypumessenger.viewmodels.displayStatus
+import com.example.aplikacjatypumessenger.viewmodels.readReceipts
 import com.example.aplikacjatypumessenger.viewmodels.filterUsers
 import com.example.aplikacjatypumessenger.viewmodels.toggle
 import com.example.aplikacjatypumessenger.viewmodels.unreadIncomingMessageIds
@@ -85,6 +88,45 @@ class ChatMappersTest {
         )
 
         assertEquals(listOf("1", "2"), unreadIncomingMessageIds(messages, me))
+    }
+
+    @Test
+    fun `group member marks message read until they are in readBy, even if status is already read`() {
+        val messages = listOf(
+            Message(id = "1", senderId = "anna", status = MessageStatus.READ, recipients = listOf(me, "bartek"), readBy = listOf("bartek")),
+            Message(id = "2", senderId = "anna", status = MessageStatus.READ, recipients = listOf(me, "bartek"), readBy = listOf(me)),
+            // Dołączyłem do grupy po wysłaniu - nie jestem odbiorcą
+            Message(id = "3", senderId = "anna", status = MessageStatus.SENT, recipients = listOf("bartek"))
+        )
+
+        assertEquals(listOf("1"), unreadIncomingMessageIds(messages, me))
+    }
+
+    @Test
+    fun `group message is read only when all current members read it`() {
+        val members = setOf(me, "anna", "bartek")
+        val base = Message(senderId = me, status = MessageStatus.READ, recipients = listOf("anna", "bartek"))
+
+        assertEquals(MessageStatus.DELIVERED, base.copy(readBy = listOf("anna")).displayStatus(members))
+        assertEquals(MessageStatus.READ, base.copy(readBy = listOf("anna", "bartek")).displayStatus(members))
+        assertEquals(MessageStatus.SENT, base.copy(status = MessageStatus.SENT).displayStatus(members))
+    }
+
+    @Test
+    fun `member who left the group does not block read status`() {
+        val message = Message(senderId = me, status = MessageStatus.READ, recipients = listOf("anna", "bartek"), readBy = listOf("anna"))
+
+        assertEquals(MessageStatus.READ, message.displayStatus(setOf(me, "anna")))
+        assertEquals(ReadReceipts(readBy = listOf("anna"), notReadBy = emptyList()), message.readReceipts(setOf(me, "anna")))
+    }
+
+    @Test
+    fun `private and legacy group messages keep their stored status`() {
+        val legacy = Message(senderId = me, status = MessageStatus.READ)
+
+        assertEquals(MessageStatus.READ, legacy.displayStatus(null))
+        assertEquals(MessageStatus.READ, legacy.displayStatus(setOf(me, "anna")))
+        assertNull(legacy.readReceipts(setOf(me, "anna")))
     }
 
     @Test

@@ -23,6 +23,13 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
 
+    // Lista `readBy` może tylko urosnąć, i to wyłącznie o bieżącego użytkownika
+    function readByAddsOnlySelf() {
+      let before = resource.data.get('readBy', []).toSet();
+      let after = request.resource.data.get('readBy', []).toSet();
+      return after.hasAll(before) && after.difference(before).hasOnly([uid()]);
+    }
+
     function isGroup(data) {
       return data.get('isGroup', false) == true;
     }
@@ -70,13 +77,16 @@ service cloud.firestore {
         && request.resource.data.text.size() <= 5000
         // Nowa wiadomość nie może udawać już dostarczonej ani przeczytanej
         && request.resource.data.get('seen', false) == false
-        && !(request.resource.data.get('status', '') in ['delivered', 'read']);
+        && !(request.resource.data.get('status', '') in ['delivered', 'read'])
+        && request.resource.data.get('readBy', []).size() == 0
+        && request.resource.data.get('recipients', []) is list;
 
-      // Odbiorcy mogą zmieniać wyłącznie status dostarczenia/odczytu
+      // Odbiorcy mogą zmieniać wyłącznie status dostarczenia/odczytu i dopisać siebie do readBy
       allow update: if isParticipant(resource.data.chatId)
         && resource.data.senderId != uid()
-        && changedOnly(['status', 'seen', 'deliveredAt', 'readAt'])
-        && request.resource.data.status in ['delivered', 'read'];
+        && changedOnly(['status', 'seen', 'deliveredAt', 'readAt', 'readBy'])
+        && request.resource.data.status in ['delivered', 'read']
+        && readByAddsOnlySelf();
 
       allow delete: if signedIn() && resource.data.senderId == uid();
     }

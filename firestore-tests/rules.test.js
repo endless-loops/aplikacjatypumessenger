@@ -24,6 +24,10 @@ beforeEach(async () => {
     await setDoc(doc(a, "chats", "dm"), { id: "dm", participants: ["alice", "bob"], isGroup: false });
     await setDoc(doc(a, "chats", "grp"), { id: "grp", participants: ["alice", "bob", "carol"], isGroup: true, groupAdmin: "alice", groupName: "G" });
     await setDoc(doc(a, "messages", "m1"), { id: "m1", chatId: "dm", senderId: "bob", text: "hej", timestamp: 1, status: "sent", seen: false });
+    await setDoc(doc(a, "messages", "g1"), {
+      id: "g1", chatId: "grp", senderId: "alice", text: "hej grupo", timestamp: 1, status: "sent", seen: false,
+      isGroupMessage: true, recipients: ["bob", "carol"], readBy: [],
+    });
   });
 });
 
@@ -84,6 +88,34 @@ describe("messages", () => {
     assertFails(setDoc(doc(db("alice"), "messages", "m6"), { chatId: "dm", senderId: "alice", text: "x".repeat(5001), timestamp: 3, status: "sent" })));
   it("cannot spoof chat lastMessage as someone else", () =>
     assertFails(updateDoc(doc(db("alice"), "chats", "dm"), { lastMessage: { text: "fake", senderId: "bob", timestamp: 9 }, lastMessageTime: 9 })));
+  it("group send with recipients", () =>
+    assertSucceeds(setDoc(doc(db("bob"), "messages", "g2"), {
+      chatId: "grp", senderId: "bob", text: "x", timestamp: 3, status: "sent", recipients: ["alice", "carol"], readBy: [],
+    })));
+  it("cannot send a message with readBy already filled", () =>
+    assertFails(setDoc(doc(db("bob"), "messages", "g3"), {
+      chatId: "grp", senderId: "bob", text: "x", timestamp: 3, status: "sent", recipients: ["alice", "carol"], readBy: ["alice"],
+    })));
+  it("group member marks as read and adds self to readBy (arrayUnion)", () =>
+    assertSucceeds(updateDoc(doc(db("bob"), "messages", "g1"), { status: "read", seen: true, readAt: 5, readBy: arrayUnion("bob") })));
+  it("second member adds self after the first one", async () => {
+    await updateDoc(doc(db("bob"), "messages", "g1"), { status: "read", seen: true, readAt: 5, readBy: arrayUnion("bob") });
+    await assertSucceeds(updateDoc(doc(db("carol"), "messages", "g1"), { status: "read", seen: true, readAt: 6, readBy: arrayUnion("carol") }));
+  });
+  it("cannot add someone else to readBy", () =>
+    assertFails(updateDoc(doc(db("bob"), "messages", "g1"), { status: "read", readBy: arrayUnion("carol") })));
+  it("cannot remove others from readBy", async () => {
+    await updateDoc(doc(db("bob"), "messages", "g1"), { status: "read", readBy: arrayUnion("bob") });
+    await assertFails(updateDoc(doc(db("carol"), "messages", "g1"), { status: "read", readBy: ["carol"] }));
+  });
+  it("sender cannot add self to readBy", () =>
+    assertFails(updateDoc(doc(db("alice"), "messages", "g1"), { status: "read", readBy: arrayUnion("alice") })));
+  it("cannot change recipients after sending", () =>
+    assertFails(updateDoc(doc(db("bob"), "messages", "g1"), { status: "read", recipients: ["bob"] })));
+  it("outsider cannot mark group message as read", () =>
+    assertFails(updateDoc(doc(db("eve"), "messages", "g1"), { status: "read", readBy: arrayUnion("eve") })));
+  it("private chat read also accepts readBy", () =>
+    assertSucceeds(updateDoc(doc(db("alice"), "messages", "m1"), { status: "read", seen: true, readAt: 5, readBy: arrayUnion("alice") })));
   it("markAsDelivered transaction", () => {
     const d = db("alice");
     return assertSucceeds(runTransaction(d, async (t) => {

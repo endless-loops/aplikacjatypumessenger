@@ -15,6 +15,10 @@ data class Message(
     val status: String = MessageStatus.SENT,
     val deliveredAt: Long = 0L,
     val readAt: Long = 0L,
+    /** Tylko w grupach: członkowie grupy (bez nadawcy) w chwili wysłania. Puste w starszych wiadomościach. */
+    val recipients: List<String> = emptyList(),
+    /** Kto już przeczytał wiadomość; każdy dopisuje tu wyłącznie siebie. */
+    val readBy: List<String> = emptyList(),
     @get:PropertyName("isGroupMessage") @set:PropertyName("isGroupMessage")
     var isGroupMessage: Boolean = false
 )

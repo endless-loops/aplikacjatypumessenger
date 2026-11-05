@@ -14,9 +14,13 @@ import com.example.aplikacjatypumessenger.models.MessageStatus
 import com.example.aplikacjatypumessenger.utils.TimeFormat
 import com.example.aplikacjatypumessenger.viewmodels.MessageItem
 
-/** @param showSenderNames w czatach grupowych nad cudzymi wiadomościami pokazuje autora */
+/**
+ * @param showSenderNames w czatach grupowych nad cudzymi wiadomościami pokazuje autora
+ * @param onOwnMessageLongClick wywoływane po przytrzymaniu własnej wiadomości
+ */
 class MessageAdapter(
-    private val showSenderNames: Boolean = false
+    private val showSenderNames: Boolean = false,
+    private val onOwnMessageLongClick: ((MessageItem) -> Unit)? = null
 ) : ListAdapter<MessageItem, RecyclerView.ViewHolder>(DiffCallback) {
 
     override fun getItemViewType(position: Int): Int =
@@ -39,7 +43,18 @@ class MessageAdapter(
         }
     }
 
-    class SentViewHolder(private val binding: ItemMessageSentBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class SentViewHolder(private val binding: ItemMessageSentBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            if (onOwnMessageLongClick != null) {
+                binding.root.setOnLongClickListener {
+                    val position = bindingAdapterPosition
+                    if (position == RecyclerView.NO_POSITION) return@setOnLongClickListener false
+                    onOwnMessageLongClick.invoke(getItem(position))
+                    true
+                }
+            }
+        }
+
         fun bind(message: MessageItem) {
             binding.sentMessageTextView.text = message.text
             binding.sentTimeTextView.text = TimeFormat.time(message.timestamp)

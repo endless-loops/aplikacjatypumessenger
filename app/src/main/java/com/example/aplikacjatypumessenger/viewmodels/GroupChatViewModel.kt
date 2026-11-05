@@ -44,6 +44,8 @@ data class GroupChatUiState(
 sealed interface GroupChatEvent {
     data class ShowMessage(val text: UiText) : GroupChatEvent
     data class Close(val text: UiText) : GroupChatEvent
+    /** Imiona członków, którzy przeczytali / jeszcze nie przeczytali wybranej wiadomości. */
+    data class ShowReadReceipts(val readBy: List<String?>, val notReadBy: List<String?>) : GroupChatEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -82,13 +84,14 @@ class GroupChatViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** Nazwy obecnych członków oraz autorów starszych wiadomości, którzy mogli już odejść. */
-    private val usersById: Flow<Map<String, User>> =
+    private val usersById: StateFlow<Map<String, User>> =
         combine(chat.filterNotNull(), messages) { chat, messages ->
-            chat.participants.toSet() + messages.map { it.senderId }
+            chat.participants.toSet() + messages.map { it.senderId } + messages.flatMap { it.recipients }
         }
             .distinctUntilChanged()
             .mapLatest { ids -> userRepository.getUsers(ids).associateBy { it.id } }
             .catch { emit(emptyMap()) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     val uiState: StateFlow<GroupChatUiState> =
         combine(chat, messages, usersById) { chat, messages, users ->
@@ -96,7 +99,11 @@ class GroupChatViewModel(
                 groupName = chat?.groupName,
                 memberCount = chat?.participants?.size ?: 0,
                 messages = messages.map { message ->
-                    message.toItem(currentUserId, senderName = users[message.senderId]?.username)
+                    message.toItem(
+                        currentUserId,
+                        senderName = users[message.senderId]?.username,
+                        currentMembers = chat?.participants?.toSet()
+                    )
                 }
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupChatUiState())
@@ -119,10 +126,32 @@ class GroupChatViewModel(
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             runSuspendCatching {
-                messageRepository.send(chatId, currentUserId, trimmed, isGroup = true)
+                val recipients = chat.value?.participants.orEmpty().filter { it != currentUserId }.distinct()
+                messageRepository.send(chatId, currentUserId, trimmed, isGroup = true, recipients = recipients)
             }.onFailure {
                 _events.send(GroupChatEvent.ShowMessage(UiText.error(R.string.error_sending_message, it)))
             }
+        }
+    }
+
+    /** Przytrzymanie własnej wiadomości pokazuje, kto ją przeczytał. */
+    fun onMessageLongClick(messageId: String) {
+        val message = messages.value.firstOrNull { it.id == messageId } ?: return
+        if (message.senderId != currentUserId) return
+        val members = chat.value?.participants.orEmpty()
+        viewModelScope.launch {
+            val receipts = message.readReceipts(members)
+            if (receipts == null) {
+                _events.send(GroupChatEvent.ShowMessage(UiText.Res(R.string.read_receipts_unavailable)))
+                return@launch
+            }
+            val users = usersById.value
+            _events.send(
+                GroupChatEvent.ShowReadReceipts(
+                    readBy = receipts.readBy.map { users[it]?.username },
+                    notReadBy = receipts.notReadBy.map { users[it]?.username }
+                )
+            )
         }
     }
 

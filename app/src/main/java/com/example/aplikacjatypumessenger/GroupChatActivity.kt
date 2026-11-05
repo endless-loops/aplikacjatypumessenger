@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.inputmethod.EditorInfo
 import androidx.activity.viewModels
+import androidx.annotation.StringRes
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -23,7 +25,7 @@ class GroupChatActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityGroupChatBinding
     private val viewModel: GroupChatViewModel by viewModels { GroupChatViewModel.Factory }
-    private val messageAdapter = MessageAdapter(showSenderNames = true)
+    private val messageAdapter = MessageAdapter(showSenderNames = true) { viewModel.onMessageLongClick(it.id) }
     private lateinit var chatId: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,6 +70,7 @@ class GroupChatActivity : AppCompatActivity() {
                     showToast(event.text)
                     finish()
                 }
+                is GroupChatEvent.ShowReadReceipts -> showReadReceipts(event.readBy, event.notReadBy)
             }
         }
     }
@@ -95,6 +98,19 @@ class GroupChatActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         viewModel.onScreenVisibilityChanged(false)
+    }
+
+    private fun showReadReceipts(readBy: List<String?>, notReadBy: List<String?>) {
+        fun section(@StringRes title: Int, names: List<String?>): String {
+            val lines = names.map { "• " + (it ?: getString(R.string.default_user_name)) }
+                .ifEmpty { listOf(getString(R.string.read_receipts_nobody)) }
+            return getString(title) + ":\n" + lines.joinToString("\n")
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.read_receipts_title)
+            .setMessage(section(R.string.read_receipts_read, readBy) + "\n\n" + section(R.string.read_receipts_not_read, notReadBy))
+            .setPositiveButton(R.string.action_close, null)
+            .show()
     }
 
     private fun send() {
