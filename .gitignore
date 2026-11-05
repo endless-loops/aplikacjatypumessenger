@@ -22,3 +22,14 @@ functions/node_modules
 firebase-debug.log
 firestore-debug.log
 firestore-tests/node_modules
+
+# Lokalne archiwa/kopie zapasowe
+*.zip
+
+# Pliki Eclipse/Buildship (np. z rozszerzenia Javy w VS Code)
+.project
+.classpath
+.settings/
+
+# Lokalne ustawienia Android Studio
+/.idea/doNotAskNotifications.xml
