@@ -49,7 +49,6 @@ class ChatViewModel(
     private val currentUserId = authRepository.currentUserId.orEmpty()
 
     private val isVisible = MutableStateFlow(false)
-    private val readRequested = mutableSetOf<String>()
 
     private val _events = Channel<ChatEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -73,20 +72,7 @@ class ChatViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ChatUiState())
 
     init {
-        // Wiadomości są "przeczytane" dopiero, gdy ekran czatu jest faktycznie widoczny
-        viewModelScope.launch {
-            combine(messages, isVisible) { messages, visible ->
-                if (visible) unreadIncomingMessageIds(messages, currentUserId) else emptyList()
-            }.collect { ids ->
-                val newIds = ids.filterNot { it in readRequested }
-                if (newIds.isEmpty()) return@collect
-                readRequested += newIds
-                launch {
-                    runSuspendCatching { messageRepository.markAsRead(newIds) }
-                        .onFailure { readRequested -= newIds.toSet() }
-                }
-            }
-        }
+        viewModelScope.launchReadReceipts(messages, isVisible, currentUserId, messageRepository)
     }
 
     fun onScreenVisibilityChanged(visible: Boolean) {

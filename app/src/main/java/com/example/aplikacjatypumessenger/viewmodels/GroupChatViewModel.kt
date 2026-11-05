@@ -22,6 +22,7 @@ import com.example.aplikacjatypumessenger.utils.runSuspendCatching
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -57,6 +58,8 @@ class GroupChatViewModel(
 
     private val chatId: String = savedStateHandle[Extras.CHAT_ID] ?: ""
     private val currentUserId = authRepository.currentUserId.orEmpty()
+
+    private val isVisible = MutableStateFlow(false)
 
     private val _events = Channel<GroupChatEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -98,7 +101,12 @@ class GroupChatViewModel(
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupChatUiState())
 
+    init {
+        viewModelScope.launchReadReceipts(messages, isVisible, currentUserId, messageRepository)
+    }
+
     fun onScreenVisibilityChanged(visible: Boolean) {
+        isVisible.value = visible
         if (visible) {
             activeChatTracker.activeChatId = chatId
         } else if (activeChatTracker.activeChatId == chatId) {
