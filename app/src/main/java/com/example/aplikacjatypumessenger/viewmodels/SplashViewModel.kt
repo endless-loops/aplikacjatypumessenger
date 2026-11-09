@@ -12,10 +12,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Ekran startowy: po krótkiej chwili decyduje, czy przejść do ekranu głównego
+ * (użytkownik zalogowany), czy do logowania. Firebase pamięta sesję między uruchomieniami,
+ * więc wystarczy sprawdzić, czy jest bieżący użytkownik.
+ */
 class SplashViewModel(authRepository: AuthRepository) : ViewModel() {
 
     enum class Destination { MAIN, LOGIN }
 
+    // null = jeszcze nie wiadomo, dokąd przejść
     private val _destination = MutableStateFlow<Destination?>(null)
     val destination: StateFlow<Destination?> = _destination.asStateFlow()
 
@@ -30,6 +36,8 @@ class SplashViewModel(authRepository: AuthRepository) : ViewModel() {
     companion object {
         private const val SPLASH_DURATION_MS = 2000L
 
+        // Fabryka przekazuje repozytoria z AppContainer (ViewModel nie może mieć
+        // parametrów w konstruktorze bez własnej fabryki). Ten sam wzorzec jest we wszystkich ViewModelach.
         val Factory = viewModelFactory {
             initializer { SplashViewModel(appContainer.authRepository) }
         }

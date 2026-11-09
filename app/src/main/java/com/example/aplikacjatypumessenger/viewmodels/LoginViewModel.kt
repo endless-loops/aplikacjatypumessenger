@@ -23,17 +23,23 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
+/** Stan ekranu logowania: trwające logowanie i błędy przy polach formularza. */
 data class LoginUiState(
     val isLoading: Boolean = false,
     val emailError: UiText? = null,
     val passwordError: UiText? = null
 )
 
+/**
+ * Jednorazowe zdarzenia (nawigacja, toast). Nie są częścią stanu, bo po obrocie ekranu
+ * nie powinny się powtórzyć - dlatego idą przez Channel, a nie StateFlow.
+ */
 sealed interface LoginEvent {
     data object NavigateToMain : LoginEvent
     data class ShowMessage(val text: UiText) : LoginEvent
 }
 
+/** Logika ekranu logowania: walidacja, logowanie przez Firebase Auth i reset hasła. */
 class LoginViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
@@ -52,11 +58,13 @@ class LoginViewModel(
         val passwordError = if (Validators.isValidPassword(password)) null
         else UiText.Res(R.string.error_password_too_short, listOf(Validators.MIN_PASSWORD_LENGTH))
         _uiState.update { it.copy(emailError = emailError, passwordError = passwordError) }
+        // isLoading chroni przed wielokrotnym kliknięciem przycisku
         if (emailError != null || passwordError != null || _uiState.value.isLoading) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
+                // Bez internetu Firebase potrafi czekać bardzo długo, więc ograniczamy czas
                 val userId = withTimeout(LOGIN_TIMEOUT_MS) { authRepository.login(trimmedEmail, password) }
                 // Ekran logowania zaraz się zamknie, więc zapis statusu/tokenu idzie w zakresie aplikacji
                 applicationScope.launch { runSuspendCatching { userRepository.onSignedIn(userId) } }
@@ -64,6 +72,7 @@ class LoginViewModel(
             } catch (e: TimeoutCancellationException) {
                 _events.send(LoginEvent.ShowMessage(UiText.Res(R.string.error_login_timeout)))
             } catch (e: CancellationException) {
+                // Anulowania nie traktujemy jak błędu (np. zamknięcie ekranu)
                 throw e
             } catch (e: Exception) {
                 _events.send(LoginEvent.ShowMessage(UiText.error(R.string.error_login_failed, e)))
@@ -73,6 +82,7 @@ class LoginViewModel(
         }
     }
 
+    /** Obsługa okna „Zapomniałeś hasła?” - wysyła e-mail z linkiem resetującym. */
     fun sendPasswordReset(email: String) {
         val trimmedEmail = email.trim()
         if (!Validators.isValidEmail(trimmedEmail)) {

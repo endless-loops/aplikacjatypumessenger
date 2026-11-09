@@ -19,6 +19,7 @@ fun CoroutineScope.launchReadReceipts(
     currentUserId: String,
     messageRepository: MessageRepository
 ): Job = launch {
+    // Id już wysłane do oznaczenia - żeby nie zapisywać tych samych wiadomości przy każdej zmianie listy
     val readRequested = mutableSetOf<String>()
     combine(messages, isVisible) { messages, visible ->
         if (visible) unreadIncomingMessageIds(messages, currentUserId) else emptyList()
@@ -28,6 +29,7 @@ fun CoroutineScope.launchReadReceipts(
         readRequested += newIds
         launch {
             runSuspendCatching { messageRepository.markAsRead(newIds, currentUserId) }
+                // Przy błędzie zdejmujemy id ze zbioru, żeby spróbować ponownie przy następnej zmianie
                 .onFailure { readRequested -= newIds.toSet() }
         }
     }

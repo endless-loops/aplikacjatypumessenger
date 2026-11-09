@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/** Członek grupy na liście w ekranie zarządzania. */
 data class GroupMemberItem(
     val user: User,
     val isAdmin: Boolean,
@@ -42,7 +43,9 @@ data class GroupMemberItem(
 data class GroupManagementUiState(
     val groupName: String? = null,
     val members: List<GroupMemberItem> = emptyList(),
+    /** Od tego zależy, czy widać opcje admina (usuwanie członków, usunięcie grupy itd.). */
     val isCurrentUserAdmin: Boolean = false,
+    /** Trwa jakaś operacja - przyciski są wtedy nieaktywne. */
     val isBusy: Boolean = false
 )
 
@@ -51,7 +54,12 @@ sealed interface GroupManagementEvent {
     data object Close : GroupManagementEvent
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
+/**
+ * Ekran „Informacje i członkowie”: lista członków, dodawanie i usuwanie osób,
+ * przekazanie roli admina, opuszczenie i usunięcie grupy. Uprawnienia admina sprawdzają
+ * też reguły Firestore - ukrycie przycisków w UI to tylko wygoda, a nie zabezpieczenie.
+ */
+@OptIn(ExperimentalCoroutinesApi::class) // mapLatest
 class GroupManagementViewModel(
     savedStateHandle: SavedStateHandle,
     authRepository: AuthRepository,
@@ -66,6 +74,7 @@ class GroupManagementViewModel(
     private val _events = Channel<GroupManagementEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
+    // Ekran zamyka się sam, gdy grupa zniknie albo użytkownik zostanie z niej usunięty
     private val chat: StateFlow<Chat?> = chatRepository.observeChat(chatId)
         .onEach { chat ->
             if (chat == null || currentUserId !in chat.participants) _events.send(GroupManagementEvent.Close)
@@ -89,6 +98,7 @@ class GroupManagementViewModel(
                 groupName = chat?.groupName,
                 members = members
                     .map { GroupMemberItem(it, isAdmin = it.id == adminId, isCurrentUser = it.id == currentUserId) }
+                    // Admin zawsze na górze listy, reszta alfabetycznie
                     .sortedWith(compareByDescending<GroupMemberItem> { it.isAdmin }.thenBy { it.user.username.lowercase() }),
                 isCurrentUserAdmin = adminId == currentUserId,
                 isBusy = busy
@@ -114,6 +124,7 @@ class GroupManagementViewModel(
         _events.send(GroupManagementEvent.Close)
     }
 
+    /** Wspólna obsługa akcji: blokada na czas operacji i komunikat przy błędzie. */
     private fun runAction(@StringRes errorRes: Int, action: suspend () -> Unit) {
         if (isBusy.value) return
         viewModelScope.launch {

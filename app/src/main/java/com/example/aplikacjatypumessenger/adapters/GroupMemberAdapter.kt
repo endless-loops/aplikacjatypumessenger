@@ -12,6 +12,7 @@ import com.example.aplikacjatypumessenger.R
 import com.example.aplikacjatypumessenger.databinding.ItemGroupMemberBinding
 import com.example.aplikacjatypumessenger.viewmodels.GroupMemberItem
 
+/** Lista członków grupy; admin ma przy każdej osobie menu z opcjami. */
 class GroupMemberAdapter(
     private val onRemove: (GroupMemberItem) -> Unit,
     private val onMakeAdmin: (GroupMemberItem) -> Unit
@@ -23,6 +24,7 @@ class GroupMemberAdapter(
         set(value) {
             if (field == value) return
             field = value
+            // Zmienia się wygląd wszystkich wierszy naraz (przycisk opcji), więc odświeżamy całą listę
             notifyDataSetChanged()
         }
 
@@ -46,6 +48,7 @@ class GroupMemberAdapter(
             binding.userStatusText.text =
                 if (member.isAdmin) context.getString(R.string.member_admin_status, status) else status
 
+            // Admin nie może usunąć sam siebie z tego menu - do tego służy „Opuść grupę”
             binding.optionsButton.visibility = if (canManage && !member.isCurrentUser) View.VISIBLE else View.GONE
             binding.optionsButton.setOnClickListener { showOptionsMenu(member) }
         }

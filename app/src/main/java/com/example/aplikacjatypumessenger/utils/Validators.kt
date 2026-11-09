@@ -1,5 +1,9 @@
 package com.example.aplikacjatypumessenger.utils
 
+/**
+ * Walidacja formularzy logowania i rejestracji po stronie klienta. Minimalna długość hasła
+ * odpowiada wymaganiu Firebase Auth, więc błąd widać od razu, bez zapytania do serwera.
+ */
 object Validators {
     const val MIN_PASSWORD_LENGTH = 6
     const val MIN_USERNAME_LENGTH = 3

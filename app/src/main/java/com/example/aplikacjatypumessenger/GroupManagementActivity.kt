@@ -25,6 +25,7 @@ class GroupManagementActivity : AppCompatActivity() {
     private val viewModel: GroupManagementViewModel by viewModels { GroupManagementViewModel.Factory }
     private lateinit var chatId: String
 
+    // Każda zmiana składu grupy wymaga potwierdzenia w oknie dialogowym
     private val memberAdapter = GroupMemberAdapter(
         onRemove = { member ->
             confirm(getString(R.string.confirm_remove_member, member.user.username)) {
@@ -71,6 +72,7 @@ class GroupManagementActivity : AppCompatActivity() {
             memberAdapter.canManage = state.isCurrentUserAdmin
             memberAdapter.submitList(state.members)
 
+            // Zwykły członek widzi tylko „Opuść grupę”
             val adminVisibility = if (state.isCurrentUserAdmin) View.VISIBLE else View.GONE
             binding.addMembersButton.visibility = adminVisibility
             binding.deleteGroupButton.visibility = adminVisibility
@@ -86,6 +88,7 @@ class GroupManagementActivity : AppCompatActivity() {
         }
     }
 
+    /** Okno z pytaniem „czy na pewno” przed nieodwracalną akcją. */
     private fun confirm(@StringRes messageRes: Int, onConfirm: () -> Unit) = confirm(getString(messageRes), onConfirm)
 
     private fun confirm(message: String, onConfirm: () -> Unit) {

@@ -15,6 +15,7 @@ import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.AddMembersEvent
 import com.example.aplikacjatypumessenger.viewmodels.AddMembersViewModel
 
+/** Wybór osób do dodania do grupy, z wyszukiwarką. Otwierany z [GroupManagementActivity]. */
 class AddMembersActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAddMembersBinding
@@ -50,6 +51,7 @@ class AddMembersActivity : AppCompatActivity() {
                 ?: getString(R.string.add_members)
             adapter.submitList(state.users)
             binding.btnAddMembers.isEnabled = state.selectedCount > 0 && !state.isSaving
+            // Na przycisku widać liczbę zaznaczonych osób, np. „Dodaj (2)”
             binding.btnAddMembers.text = when {
                 state.isSaving -> getString(R.string.adding_members)
                 state.selectedCount > 0 -> getString(R.string.add_members_count, state.selectedCount)

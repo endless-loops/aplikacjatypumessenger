@@ -10,6 +10,7 @@ import com.example.aplikacjatypumessenger.utils.collectWhenStarted
 import com.example.aplikacjatypumessenger.viewmodels.SplashViewModel
 import kotlinx.coroutines.flow.filterNotNull
 
+/** Ekran startowy z logo; o tym, dokąd przejść dalej, decyduje [SplashViewModel]. */
 class SplashActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySplashBinding
@@ -21,6 +22,7 @@ class SplashActivity : AppCompatActivity() {
         setContentView(binding.root)
         binding.root.applySystemBarsPadding()
 
+        // Animacja pojawiania się logo tylko przy pierwszym uruchomieniu ekranu
         if (savedInstanceState == null) {
             binding.logoImageView.alpha = 0f
             binding.logoImageView.animate().alpha(1f).setDuration(1000).start()
@@ -32,7 +34,7 @@ class SplashActivity : AppCompatActivity() {
                 SplashViewModel.Destination.LOGIN -> LoginActivity::class.java
             }
             startActivity(Intent(this, next))
-            finish()
+            finish() // żeby przycisk Wstecz nie wracał do ekranu startowego
         }
     }
 }

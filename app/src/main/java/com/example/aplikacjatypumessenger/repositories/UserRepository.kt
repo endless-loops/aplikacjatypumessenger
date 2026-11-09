@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Profile użytkowników w kolekcji `users`: lista użytkowników, status online
+ * i token FCM potrzebny do powiadomień.
+ */
 class UserRepository(
     private val firestore: FirebaseFirestore,
     private val messaging: FirebaseMessaging
@@ -17,6 +21,7 @@ class UserRepository(
 
     private val users get() = firestore.collection(USERS)
 
+    /** Wszyscy użytkownicy - do listy na ekranie głównym i wyboru członków grupy. */
     fun observeUsers(): Flow<List<User>> =
         users.snapshots().map { snapshot -> snapshot.toObjects(User::class.java) }
 
@@ -33,6 +38,7 @@ class UserRepository(
         users.document(user.id).set(user).await()
     }
 
+    /** Brak tokenu (np. urządzenie bez usług Google) nie powinien blokować logowania, stąd pusty napis. */
     suspend fun fetchFcmToken(): String =
         runCatching { messaging.token.await() }.getOrDefault("")
 
@@ -40,6 +46,7 @@ class UserRepository(
         users.document(userId).update(FIELD_FCM_TOKEN, token).await()
     }
 
+    /** Wywoływane przez [com.example.aplikacjatypumessenger.services.PresenceObserver]. */
     suspend fun setOnline(userId: String, online: Boolean) {
         users.document(userId).update(
             FIELD_STATUS, if (online) UserStatus.ONLINE else UserStatus.OFFLINE,
@@ -68,6 +75,6 @@ class UserRepository(
         const val FIELD_STATUS = "status"
         const val FIELD_LAST_SEEN = "lastSeen"
         const val FIELD_FCM_TOKEN = "fcmToken"
-        const val IN_QUERY_LIMIT = 10
+        const val IN_QUERY_LIMIT = 10 // bezpieczna wartość, starsze wersje Firestore pozwalały na 10
     }
 }

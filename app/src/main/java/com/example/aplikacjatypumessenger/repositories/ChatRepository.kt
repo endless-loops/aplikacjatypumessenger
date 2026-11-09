@@ -9,10 +9,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Operacje na kolekcji `chats`: rozmowy prywatne i grupy.
+ * Metody `observe*` zwracają Flow oparty na nasłuchiwaniu Firestore (`snapshots()`),
+ * więc UI odświeża się samo, gdy ktoś inny zmieni dane. Nasłuch kończy się razem
+ * z korutyną, która zbiera Flow, czyli nie trzeba ręcznie usuwać listenerów.
+ */
 class ChatRepository(private val firestore: FirebaseFirestore) {
 
     private val chats get() = firestore.collection(CHATS)
 
+    /** Wszystkie czaty (prywatne i grupy), w których użytkownik jest uczestnikiem. */
     fun observeChatsForUser(userId: String): Flow<List<Chat>> =
         chats.whereArrayContains(FIELD_PARTICIPANTS, userId).snapshots()
             .map { snapshot -> snapshot.documents.mapNotNull { it.toChat() } }
@@ -21,12 +28,19 @@ class ChatRepository(private val firestore: FirebaseFirestore) {
     fun observeChat(chatId: String): Flow<Chat?> =
         chats.document(chatId).snapshots().map { it.toChat() }
 
+    /**
+     * Zwraca istniejącą rozmowę z danym użytkownikiem albo tworzy nową, żeby jedna para
+     * użytkowników nie miała kilku osobnych rozmów.
+     */
     suspend fun findOrCreatePrivateChat(currentUserId: String, otherUserId: String): Chat {
+        // Firestore nie pozwala na dwa warunki array-contains w jednym zapytaniu,
+        // więc drugiego uczestnika filtrujemy już po stronie aplikacji
         val existing = chats.whereArrayContains(FIELD_PARTICIPANTS, currentUserId).get().await()
             .documents.mapNotNull { it.toChat() }
             .firstOrNull { !it.isGroup && otherUserId in it.participants }
         if (existing != null) return existing
 
+        // document() bez argumentu generuje nowe id, które od razu zapisujemy też w obiekcie
         val ref = chats.document()
         val chat = Chat(
             id = ref.id,
@@ -38,6 +52,7 @@ class ChatRepository(private val firestore: FirebaseFirestore) {
         return chat
     }
 
+    /** Tworzy grupę, w której twórca jest od razu administratorem. Zwraca id nowej grupy. */
     suspend fun createGroup(name: String, adminId: String, memberIds: Collection<String>): String {
         val ref = chats.document()
         val chat = Chat(
@@ -52,6 +67,9 @@ class ChatRepository(private val firestore: FirebaseFirestore) {
         return ref.id
     }
 
+    // arrayUnion / arrayRemove zmieniają listę po stronie serwera, więc dwie osoby
+    // edytujące skład grupy w tym samym czasie nie nadpiszą sobie zmian
+
     suspend fun addMembers(chatId: String, userIds: Collection<String>) {
         chats.document(chatId)
             .update(FIELD_PARTICIPANTS, FieldValue.arrayUnion(*userIds.toTypedArray()))
@@ -62,6 +80,7 @@ class ChatRepository(private val firestore: FirebaseFirestore) {
         chats.document(chatId).update(FIELD_PARTICIPANTS, FieldValue.arrayRemove(userId)).await()
     }
 
+    /** Przekazanie roli administratora (grupa ma zawsze dokładnie jednego admina). */
     suspend fun setAdmin(chatId: String, userId: String) {
         chats.document(chatId).update(FIELD_GROUP_ADMIN, userId).await()
     }
@@ -74,6 +93,7 @@ class ChatRepository(private val firestore: FirebaseFirestore) {
             return
         }
         val updates = mutableMapOf<String, Any>(FIELD_PARTICIPANTS to FieldValue.arrayRemove(userId))
+        // Obie zmiany w jednym update, żeby grupa ani na chwilę nie została bez admina
         if (chat.groupAdmin == userId) updates[FIELD_GROUP_ADMIN] = remaining.first()
         chats.document(chat.id).update(updates).await()
     }
@@ -83,6 +103,7 @@ class ChatRepository(private val firestore: FirebaseFirestore) {
         chats.document(chatId).delete().await()
     }
 
+    // Id bierzemy z dokumentu, a nie z pola, na wypadek gdyby pole było puste
     private fun DocumentSnapshot.toChat(): Chat? = toObject(Chat::class.java)?.copy(id = id)
 
     companion object {

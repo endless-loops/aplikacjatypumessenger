@@ -14,6 +14,10 @@ import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.LoginEvent
 import com.example.aplikacjatypumessenger.viewmodels.LoginViewModel
 
+/**
+ * Ekran logowania. Activity przekazuje tylko wpisane dane do [LoginViewModel]
+ * i wyświetla to, co ten zwróci (błędy przy polach, toasty, przejście dalej).
+ */
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
@@ -43,6 +47,7 @@ class LoginActivity : AppCompatActivity() {
         collectWhenStarted(viewModel.uiState) { state ->
             binding.progressBar.visibility = if (state.isLoading) View.VISIBLE else View.GONE
             binding.loginButton.isEnabled = !state.isLoading
+            // null usuwa komunikat błędu z pola
             binding.emailEditText.error = state.emailError?.asString(this)
             binding.passwordEditText.error = state.passwordError?.asString(this)
         }
@@ -57,6 +62,7 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
+    /** Okno „Zapomniałeś hasła?”; podpowiada adres wpisany już w formularzu logowania. */
     private fun showForgotPasswordDialog() {
         val dialogBinding = DialogForgotPasswordBinding.inflate(layoutInflater)
         dialogBinding.emailEditText.setText(binding.emailEditText.text)

@@ -2,6 +2,10 @@ package com.example.aplikacjatypumessenger.models
 
 import com.google.firebase.firestore.PropertyName
 
+/**
+ * Dokument z kolekcji `messages`. Wiadomości wszystkich czatów są w jednej kolekcji
+ * i rozróżnia je pole [chatId] - prościej to zapytać i zabezpieczyć regułami niż podkolekcje.
+ */
 data class Message(
     val id: String = "",
     val senderId: String = "",
@@ -19,6 +23,7 @@ data class Message(
     val recipients: List<String> = emptyList(),
     /** Kto już przeczytał wiadomość; każdy dopisuje tu wyłącznie siebie. */
     val readBy: List<String> = emptyList(),
+    // Ta sama sztuczka co w Chat.isGroup - inaczej Firestore zapisze pole jako "groupMessage"
     @get:PropertyName("isGroupMessage") @set:PropertyName("isGroupMessage")
     var isGroupMessage: Boolean = false
 )

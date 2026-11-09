@@ -10,6 +10,11 @@ import com.example.aplikacjatypumessenger.databinding.ItemChatBinding
 import com.example.aplikacjatypumessenger.utils.TimeFormat
 import com.example.aplikacjatypumessenger.viewmodels.ChatListItem
 
+/**
+ * Lista rozmów na ekranie głównym (zakładki Czaty i Grupy).
+ * Wszystkie adaptery w projekcie dziedziczą po ListAdapter - DiffUtil porównuje starą
+ * i nową listę i odświeża tylko te wiersze, które faktycznie się zmieniły.
+ */
 class ChatAdapter(
     private val onChatClick: (ChatListItem) -> Unit
 ) : ListAdapter<ChatListItem, ChatAdapter.ChatViewHolder>(DiffCallback) {
@@ -33,6 +38,7 @@ class ChatAdapter(
     }
 
     private object DiffCallback : DiffUtil.ItemCallback<ChatListItem>() {
+        // Ten sam czat = to samo id; zawartość porównuje equals() z data class
         override fun areItemsTheSame(oldItem: ChatListItem, newItem: ChatListItem) = oldItem.chatId == newItem.chatId
         override fun areContentsTheSame(oldItem: ChatListItem, newItem: ChatListItem) = oldItem == newItem
     }

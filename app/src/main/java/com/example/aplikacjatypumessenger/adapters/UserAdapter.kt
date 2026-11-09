@@ -11,6 +11,7 @@ import com.example.aplikacjatypumessenger.databinding.ItemUserBinding
 import com.example.aplikacjatypumessenger.models.User
 import com.example.aplikacjatypumessenger.utils.TimeFormat
 
+/** Lista użytkowników (zakładka Użytkownicy) ze statusem online / ostatnią aktywnością. */
 class UserAdapter(
     private val onUserClick: (User) -> Unit
 ) : ListAdapter<User, UserAdapter.UserViewHolder>(DiffCallback) {
@@ -35,6 +36,7 @@ class UserAdapter(
             binding.root.setOnClickListener { onUserClick(user) }
         }
 
+        /** „Aktywny przed chwilą / X min temu / X godz. temu”, a dla starszych dat konkretna data. */
         private fun formatLastSeen(timestamp: Long): String {
             val context = binding.root.context
             if (timestamp <= 0L) return context.getString(R.string.status_offline)

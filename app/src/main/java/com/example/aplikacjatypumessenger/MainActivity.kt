@@ -24,6 +24,11 @@ import com.example.aplikacjatypumessenger.viewmodels.MainTab
 import com.example.aplikacjatypumessenger.viewmodels.MainUiState
 import com.example.aplikacjatypumessenger.viewmodels.MainViewModel
 
+/**
+ * Ekran główny z dolną nawigacją (Czaty, Użytkownicy, Profil, Grupy). Zakładki to nie
+ * osobne fragmenty, tylko sekcje jednego layoutu przełączane widocznością - przy tak
+ * prostych listach wystarcza to i upraszcza kod. Activity tylko rysuje stan z [MainViewModel].
+ */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -49,6 +54,7 @@ class MainActivity : AppCompatActivity() {
 
         setupListeners()
         observeViewModel()
+        // Tylko przy pierwszym utworzeniu, nie po każdym obrocie ekranu
         if (savedInstanceState == null) requestNotificationPermission()
     }
 
@@ -79,6 +85,7 @@ class MainActivity : AppCompatActivity() {
                 is MainEvent.OpenChat -> openChat(event.chatId, event.isGroup, event.otherUserId)
                 is MainEvent.ShowMessage -> showToast(event.text)
                 MainEvent.NavigateToLogin -> {
+                    // Czyścimy cały stos ekranów, żeby po wylogowaniu przycisk Wstecz nie wracał do aplikacji
                     startActivity(
                         Intent(this, LoginActivity::class.java)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -89,9 +96,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Odświeża cały ekran na podstawie stanu - jedyne miejsce, które zmienia widoki. */
     private fun render(state: MainUiState) {
         val tab = state.selectedTab
         val menuId = TAB_BY_MENU_ID.getValue(tab)
+        // Warunek zapobiega zapętleniu: ustawienie zakładki wywołuje listener, który znowu zmienia stan
         if (binding.bottomNavigation.selectedItemId != menuId) binding.bottomNavigation.selectedItemId = menuId
 
         val showChats = tab == MainTab.CHATS || tab == MainTab.GROUPS
@@ -104,6 +113,7 @@ class MainActivity : AppCompatActivity() {
         binding.emptyChatsTextView.visibility = if (showChats && state.chats.isEmpty()) View.VISIBLE else View.GONE
         binding.emptyChatsTextView.setText(if (tab == MainTab.GROUPS) R.string.empty_groups else R.string.empty_chats)
 
+        // ListAdapter sam wylicza różnice i animuje tylko zmienione wiersze
         chatAdapter.submitList(state.chats)
         userAdapter.submitList(state.users)
 
@@ -111,6 +121,7 @@ class MainActivity : AppCompatActivity() {
         binding.profileEmailTextView.text = state.profile?.email ?: state.email
     }
 
+    /** Czat prywatny i grupowy to dwa różne ekrany. */
     private fun openChat(chatId: String, isGroup: Boolean, otherUserId: String?) {
         val intent = if (isGroup) {
             Intent(this, GroupChatActivity::class.java)
@@ -129,6 +140,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
+        /** Powiązanie zakładek ViewModelu z pozycjami menu dolnej nawigacji. */
         val TAB_BY_MENU_ID = mapOf(
             MainTab.CHATS to R.id.nav_chats,
             MainTab.GROUPS to R.id.navigation_groups,

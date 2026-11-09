@@ -18,6 +18,7 @@ import com.example.aplikacjatypumessenger.di.AppContainer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
+/** Skrót do kontenera zależności z dowolnego miejsca, które ma `Context`. */
 val Context.appContainer: AppContainer
     get() = (applicationContext as MessengerApplication).container
 
@@ -34,6 +35,7 @@ fun <T> LifecycleOwner.collectWhenStarted(flow: Flow<T>, action: suspend (T) -> 
     }
 }
 
+/** Pokazuje komunikat przygotowany przez ViewModel (zob. [UiText]). */
 fun Context.showToast(text: UiText, long: Boolean = false) {
     Toast.makeText(this, text.asString(this), if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
 }
@@ -46,6 +48,7 @@ fun RecyclerView.scrollToNewMessages(previousCount: Int, lastIsMine: Boolean) {
     val count = adapter?.itemCount ?: 0
     if (count == 0 || count <= previousCount) return
     val layoutManager = layoutManager as? LinearLayoutManager
+    // Margines 2 pozycji - użytkownik nie musi być idealnie na samym dole
     val wasAtBottom = previousCount == 0 ||
         (layoutManager?.findLastVisibleItemPosition() ?: 0) >= previousCount - 2
     if (wasAtBottom || lastIsMine) scrollToPosition(count - 1)
@@ -56,6 +59,7 @@ fun RecyclerView.scrollToNewMessages(previousCount: Int, lastIsMine: Boolean) {
  * Dodaje do istniejącego paddingu miejsce na paski systemowe i klawiaturę.
  */
 fun View.applySystemBarsPadding() {
+    // Zapamiętujemy padding z layoutu, bo listener może być wywołany wiele razy
     val initialLeft = paddingLeft
     val initialTop = paddingTop
     val initialRight = paddingRight
@@ -67,6 +71,7 @@ fun View.applySystemBarsPadding() {
             initialLeft + bars.left,
             initialTop + bars.top,
             initialRight + bars.right,
+            // Otwarta klawiatura zasłania pasek nawigacji, więc bierzemy większą z wartości
             initialBottom + maxOf(bars.bottom, ime.bottom)
         )
         WindowInsetsCompat.CONSUMED

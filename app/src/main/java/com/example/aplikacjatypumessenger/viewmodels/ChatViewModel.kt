@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+/** Stan ekranu rozmowy prywatnej: nazwa rozmówcy w pasku i lista wiadomości. */
 data class ChatUiState(
     val title: String? = null,
     val messages: List<MessageItem> = emptyList()
@@ -36,6 +37,10 @@ sealed interface ChatEvent {
     data class ShowMessage(val text: UiText) : ChatEvent
 }
 
+/**
+ * ViewModel rozmowy prywatnej (1:1). Id czatu i rozmówcy przychodzą z Intentu przez
+ * SavedStateHandle, więc przetrwają też odtworzenie procesu przez system.
+ */
 class ChatViewModel(
     savedStateHandle: SavedStateHandle,
     authRepository: AuthRepository,
@@ -48,6 +53,7 @@ class ChatViewModel(
     private val otherUserId: String = savedStateHandle[Extras.OTHER_USER_ID] ?: ""
     private val currentUserId = authRepository.currentUserId.orEmpty()
 
+    // Czy ekran jest teraz widoczny - od tego zależy oznaczanie wiadomości jako przeczytanych
     private val isVisible = MutableStateFlow(false)
 
     private val _events = Channel<ChatEvent>(Channel.BUFFERED)
@@ -58,11 +64,14 @@ class ChatViewModel(
             _events.send(ChatEvent.ShowMessage(UiText.error(R.string.error_loading_messages, e)))
             emit(emptyList())
         }
+        // Eagerly, bo z tej listy korzysta też oznaczanie przeczytanych, niezależnie od UI
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val otherUser = userRepository.observeUser(otherUserId)
         .catch { emit(null) }
 
+    // WhileSubscribed(5 s): przy obrocie ekranu nasłuch nie jest zrywany,
+    // a po wyjściu z ekranu zatrzymuje się po 5 sekundach
     val uiState: StateFlow<ChatUiState> =
         combine(messages, otherUser) { messages, user: User? ->
             ChatUiState(
@@ -75,11 +84,16 @@ class ChatViewModel(
         viewModelScope.launchReadReceipts(messages, isVisible, currentUserId, messageRepository)
     }
 
+    /**
+     * Wołane z onResume/onPause ekranu. Ustawia też aktywny czat, żeby [com.example.aplikacjatypumessenger.services.MessagingService]
+     * nie pokazywał powiadomień o wiadomościach, które użytkownik właśnie widzi.
+     */
     fun onScreenVisibilityChanged(visible: Boolean) {
         isVisible.value = visible
         if (visible) {
             activeChatTracker.activeChatId = chatId
         } else if (activeChatTracker.activeChatId == chatId) {
+            // Czyścimy tylko własny czat - mógł już zostać otwarty inny
             activeChatTracker.activeChatId = null
         }
     }
@@ -88,6 +102,8 @@ class ChatViewModel(
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
+            // Wiadomość pojawi się na liście od razu (zapis lokalny Firestore),
+            // a ta korutyna czeka tylko na potwierdzenie z serwera
             runSuspendCatching {
                 messageRepository.send(chatId, currentUserId, trimmed, receiverId = otherUserId)
             }.onFailure {

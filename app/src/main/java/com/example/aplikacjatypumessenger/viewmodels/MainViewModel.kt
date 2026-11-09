@@ -27,8 +27,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
+/** Zakładki dolnej nawigacji na ekranie głównym. */
 enum class MainTab { CHATS, GROUPS, USERS, PROFILE }
 
+/** Jeden stan dla wszystkich zakładek - przełączanie zakładek nie wymaga ponownego pobierania danych. */
 data class MainUiState(
     val selectedTab: MainTab = MainTab.CHATS,
     val chats: List<ChatListItem> = emptyList(),
@@ -43,6 +45,10 @@ sealed interface MainEvent {
     data class ShowMessage(val text: UiText) : MainEvent
 }
 
+/**
+ * ViewModel ekranu głównego: lista rozmów, grup, użytkowników (z wyszukiwaniem) i profil.
+ * Dane z kilku źródeł są łączone operatorem `combine` w jeden [MainUiState].
+ */
 class MainViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
@@ -57,6 +63,7 @@ class MainViewModel(
     private val _events = Channel<MainEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
+    // Przy błędzie pokazujemy komunikat i pustą listę zamiast przerywać cały combine
     private val allUsers: Flow<List<User>> = userRepository.observeUsers()
         .catch { e ->
             _events.send(MainEvent.ShowMessage(UiText.error(R.string.error_loading_users, e)))
@@ -76,6 +83,7 @@ class MainViewModel(
             val chatItems = buildChatListItems(chats, usersById, currentUserId)
             MainUiState(
                 selectedTab = tab,
+                // Zakładka „Czaty” pokazuje wszystkie rozmowy, „Grupy” tylko grupowe
                 chats = if (tab == MainTab.GROUPS) chatItems.filter { it.isGroup } else chatItems,
                 users = filterUsers(users, currentUserId, query),
                 profile = usersById[currentUserId],
@@ -109,6 +117,7 @@ class MainViewModel(
         query.value = text
     }
 
+    /** Kliknięcie użytkownika na liście otwiera rozmowę z nim (w razie potrzeby ją zakłada). */
     fun onUserClicked(user: User) {
         viewModelScope.launch {
             runSuspendCatching { chatRepository.findOrCreatePrivateChat(currentUserId, user.id) }
@@ -117,6 +126,10 @@ class MainViewModel(
         }
     }
 
+    /**
+     * Najpierw czyścimy token FCM i status w Firestore - po signOut() reguły bezpieczeństwa
+     * nie pozwoliłyby już zmienić profilu.
+     */
     fun logout() {
         viewModelScope.launch {
             // Bez połączenia zapis nie zostanie potwierdzony - nie blokujemy wylogowania

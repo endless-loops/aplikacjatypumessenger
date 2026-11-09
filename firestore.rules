@@ -1,16 +1,24 @@
+// Reguły bezpieczeństwa Firestore. Aplikacja łączy się z bazą bezpośrednio z telefonu,
+// więc to tutaj, a nie w kodzie aplikacji, naprawdę decyduje się, kto co może odczytać i zmienić.
+// Domyślnie wszystko jest zabronione - dostęp daje tylko jawne `allow`.
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- Funkcje pomocnicze ---
+
     function signedIn() {
       return request.auth != null;
     }
 
+    // UID zalogowanego użytkownika z Firebase Auth
     function uid() {
       return request.auth.uid;
     }
 
+    // Dokument czatu - potrzebny przy wiadomościach, bo to w czacie jest lista uczestników.
+    // Każde get() liczy się jako dodatkowy odczyt z bazy.
     function chatData(chatId) {
       return get(/databases/$(database)/documents/chats/$(chatId)).data;
     }
@@ -19,6 +27,7 @@ service cloud.firestore {
       return signedIn() && uid() in chatData(chatId).participants;
     }
 
+    // Czy zapis zmienia wyłącznie podane pola (pozostałe muszą zostać bez zmian)
     function changedOnly(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
@@ -30,20 +39,28 @@ service cloud.firestore {
       return after.hasAll(before) && after.difference(before).hasOnly([uid()]);
     }
 
+    // get() z wartością domyślną - starsze dokumenty mogą nie mieć pola isGroup
     function isGroup(data) {
       return data.get('isGroup', false) == true;
     }
 
+    // --- Kolekcje ---
+
     // Profile użytkowników: każdy zalogowany może czytać, ale zapisywać tylko własny dokument.
     match /users/{userId} {
       allow read: if signedIn();
+      // Pole id w dokumencie musi zgadzać się z jego identyfikatorem (UID)
       allow create, update: if signedIn() && uid() == userId && request.resource.data.id == userId;
       allow delete: if false;
     }
 
+    // Czaty prywatne i grupy
     match /chats/{chatId} {
+      // Czat widzą tylko jego uczestnicy
       allow read: if signedIn() && uid() in resource.data.participants;
 
+      // Twórca musi być uczestnikiem; czat prywatny ma dokładnie 2 osoby,
+      // a w grupie twórca zostaje jej adminem
       allow create: if signedIn()
         && uid() in request.resource.data.participants
         && (
@@ -64,17 +81,20 @@ service cloud.firestore {
                == resource.data.participants.toSet().difference([uid()].toSet()))
       );
 
+      // Usunąć można tylko grupę i tylko jako admin (wiadomości usuwa potem Cloud Function)
       allow delete: if signedIn() && isGroup(resource.data) && resource.data.groupAdmin == uid();
     }
 
+    // Wiadomości wszystkich czatów w jednej kolekcji; o dostępie decyduje czat z pola chatId
     match /messages/{messageId} {
       allow read: if isParticipant(resource.data.chatId);
 
+      // Nie da się wysłać wiadomości w czyimś imieniu ani do czatu, w którym się nie jest
       allow create: if signedIn()
         && request.resource.data.senderId == uid()
         && isParticipant(request.resource.data.chatId)
         && request.resource.data.text is string
-        && request.resource.data.text.size() <= 5000
+        && request.resource.data.text.size() <= 5000 // limit długości, żeby nie zapychać bazy
         // Nowa wiadomość nie może udawać już dostarczonej ani przeczytanej
         && request.resource.data.get('seen', false) == false
         && !(request.resource.data.get('status', '') in ['delivered', 'read'])
@@ -88,6 +108,7 @@ service cloud.firestore {
         && request.resource.data.status in ['delivered', 'read']
         && readByAddsOnlySelf();
 
+      // Usunąć można tylko własną wiadomość
       allow delete: if signedIn() && resource.data.senderId == uid();
     }
   }

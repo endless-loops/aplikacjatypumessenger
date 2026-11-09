@@ -14,6 +14,7 @@ import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.CreateGroupEvent
 import com.example.aplikacjatypumessenger.viewmodels.CreateGroupViewModel
 
+/** Ekran tworzenia grupy; otwierany przyciskiem „Utwórz grupę” w zakładce Grupy. */
 class CreateGroupActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCreateGroupBinding
@@ -42,6 +43,7 @@ class CreateGroupActivity : AppCompatActivity() {
             when (event) {
                 is CreateGroupEvent.ShowMessage -> showToast(event.text)
                 is CreateGroupEvent.OpenGroupChat -> {
+                    // Po utworzeniu od razu przechodzimy do czatu nowej grupy
                     startActivity(Intent(this, GroupChatActivity::class.java).putExtra(Extras.CHAT_ID, event.chatId))
                     finish()
                 }

@@ -12,6 +12,7 @@ import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.RegisterEvent
 import com.example.aplikacjatypumessenger.viewmodels.RegisterViewModel
 
+/** Ekran rejestracji; działa analogicznie do [LoginActivity]. */
 class RegisterActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRegisterBinding
@@ -30,6 +31,7 @@ class RegisterActivity : AppCompatActivity() {
                 username = binding.usernameEditText.text.toString()
             )
         }
+        // Rejestracja jest otwierana z ekranu logowania, więc wystarczy do niego wrócić
         binding.loginTextView.setOnClickListener { finish() }
 
         collectWhenStarted(viewModel.uiState) { state ->
@@ -42,6 +44,7 @@ class RegisterActivity : AppCompatActivity() {
         collectWhenStarted(viewModel.events) { event ->
             when (event) {
                 RegisterEvent.NavigateToMain -> {
+                    // Usuwamy ze stosu także ekran logowania, który jest pod rejestracją
                     startActivity(
                         Intent(this, MainActivity::class.java)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)

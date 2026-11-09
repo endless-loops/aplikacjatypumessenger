@@ -30,6 +30,10 @@ sealed interface ResetPasswordEvent {
     data class ShowMessage(val text: UiText) : ResetPasswordEvent
 }
 
+/**
+ * Zmiana hasła przez zalogowanego użytkownika (osobny ekran). Reset hasła dla osoby,
+ * która go nie pamięta, jest w [LoginViewModel.sendPasswordReset].
+ */
 class ResetPasswordViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ResetPasswordUiState())
@@ -54,6 +58,7 @@ class ResetPasswordViewModel(private val authRepository: AuthRepository) : ViewM
                 authRepository.updatePassword(newPassword)
                 _events.send(ResetPasswordEvent.PasswordChanged(UiText.Res(R.string.password_changed)))
             } catch (e: NotSignedInException) {
+                // Sesja wygasła w międzyczasie - trzeba zalogować się ponownie
                 _events.send(ResetPasswordEvent.ShowMessage(UiText.Res(R.string.error_relogin_required)))
             } catch (e: CancellationException) {
                 throw e

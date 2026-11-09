@@ -33,6 +33,7 @@ sealed interface CreateGroupEvent {
     data class OpenGroupChat(val chatId: String) : CreateGroupEvent
 }
 
+/** Tworzenie grupy: nazwa i wybór członków z listy wszystkich użytkowników. */
 class CreateGroupViewModel(
     authRepository: AuthRepository,
     userRepository: UserRepository,
@@ -40,6 +41,7 @@ class CreateGroupViewModel(
 ) : ViewModel() {
 
     private val currentUserId = authRepository.currentUserId.orEmpty()
+    // Zaznaczenie trzymamy w ViewModelu, więc nie znika po obrocie ekranu
     private val selectedIds = MutableStateFlow<Set<String>>(emptySet())
     private val isSaving = MutableStateFlow(false)
 
@@ -82,6 +84,7 @@ class CreateGroupViewModel(
     }
 
     companion object {
+        // Twórca + co najmniej 2 osoby; rozmowa we dwoje to zwykły czat prywatny
         private const val MIN_OTHER_MEMBERS = 2
 
         val Factory = viewModelFactory {

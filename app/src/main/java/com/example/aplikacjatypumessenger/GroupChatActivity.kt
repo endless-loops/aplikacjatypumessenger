@@ -21,10 +21,15 @@ import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.GroupChatEvent
 import com.example.aplikacjatypumessenger.viewmodels.GroupChatViewModel
 
+/**
+ * Ekran czatu grupowego. Wygląda podobnie do [ChatActivity], ale przy wiadomościach
+ * pokazuje nadawcę, a w menu ma przejście do zarządzania grupą.
+ */
 class GroupChatActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityGroupChatBinding
     private val viewModel: GroupChatViewModel by viewModels { GroupChatViewModel.Factory }
+    // Długie przytrzymanie własnej wiadomości pokazuje, kto ją przeczytał
     private val messageAdapter = MessageAdapter(showSenderNames = true) { viewModel.onMessageLongClick(it.id) }
     private lateinit var chatId: String
 
@@ -67,6 +72,7 @@ class GroupChatActivity : AppCompatActivity() {
             when (event) {
                 is GroupChatEvent.ShowMessage -> showToast(event.text, long = true)
                 is GroupChatEvent.Close -> {
+                    // Grupa usunięta albo użytkownik usunięty z grupy
                     showToast(event.text)
                     finish()
                 }
@@ -100,6 +106,7 @@ class GroupChatActivity : AppCompatActivity() {
         viewModel.onScreenVisibilityChanged(false)
     }
 
+    /** Okno „Informacje o odczycie” z dwiema listami: przeczytali / jeszcze nie przeczytali. */
     private fun showReadReceipts(readBy: List<String?>, notReadBy: List<String?>) {
         fun section(@StringRes title: Int, names: List<String?>): String {
             val lines = names.map { "• " + (it ?: getString(R.string.default_user_name)) }

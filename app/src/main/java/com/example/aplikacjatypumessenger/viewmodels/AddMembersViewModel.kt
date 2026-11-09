@@ -38,6 +38,7 @@ sealed interface AddMembersEvent {
     data class Done(val addedCount: Int) : AddMembersEvent
 }
 
+/** Dodawanie nowych osób do istniejącej grupy (dostępne dla admina). */
 class AddMembersViewModel(
     savedStateHandle: SavedStateHandle,
     authRepository: AuthRepository,
@@ -62,6 +63,8 @@ class AddMembersViewModel(
         emit(emptyList())
     }
 
+    // Kandydaci = użytkownicy pasujący do wyszukiwania, którzy jeszcze nie są w grupie.
+    // Lista odświeża się sama, jeśli ktoś inny w tym czasie zmieni skład grupy.
     private val candidates = combine(users, chat, query) { users, chat, query ->
         val members = chat?.participants.orEmpty().toSet()
         chat?.groupName to filterUsers(users, currentUserId, query).filter { it.id !in members }

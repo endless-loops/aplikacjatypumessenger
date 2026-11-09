@@ -1,3 +1,6 @@
+// Funkcje zamieniające modele z Firestore na dane gotowe do wyświetlenia.
+// Są czystymi funkcjami (bez Androida i Firebase), więc da się je sprawdzić
+// zwykłymi testami jednostkowymi (ChatMappersTest).
 package com.example.aplikacjatypumessenger.viewmodels
 
 import com.example.aplikacjatypumessenger.models.Chat
@@ -25,6 +28,10 @@ data class MessageItem(
     val senderName: String? = null
 )
 
+/**
+ * Lista rozmów posortowana od najnowszej aktywności. Czat bez wiadomości sortujemy
+ * po dacie utworzenia, żeby świeżo założona grupa nie lądowała na samym dole.
+ */
 fun buildChatListItems(chats: List<Chat>, usersById: Map<String, User>, currentUserId: String): List<ChatListItem> =
     chats.distinctBy { it.id }
         .map { chat ->
@@ -45,7 +52,7 @@ fun buildChatListItems(chats: List<Chat>, usersById: Map<String, User>, currentU
 fun filterUsers(users: List<User>, currentUserId: String, query: String): List<User> {
     val trimmed = query.trim()
     return users.asSequence()
-        .filter { it.id != currentUserId }
+        .filter { it.id != currentUserId } // nie pokazujemy samego siebie
         .distinctBy { it.id }
         .filter { trimmed.isEmpty() || it.username.contains(trimmed, ignoreCase = true) || it.email.contains(trimmed, ignoreCase = true) }
         .sortedWith(compareByDescending<User> { it.isOnline }.thenBy { it.username.lowercase() })
@@ -53,6 +60,7 @@ fun filterUsers(users: List<User>, currentUserId: String, query: String): List<U
 }
 
 /** Id wiadomości od innych osób, które trzeba oznaczyć jako przeczytane. */
+// Pomijamy wiadomości SENDING - nie ma ich jeszcze na serwerze, więc update by się nie udał
 fun unreadIncomingMessageIds(messages: List<Message>, currentUserId: String): List<String> =
     messages.filter {
         it.senderId != currentUserId && it.status != MessageStatus.SENDING && !it.isReadBy(currentUserId)
@@ -73,6 +81,7 @@ data class ReadReceipts(val readBy: List<String>, val notReadBy: List<String>) {
 /** `null` dla wiadomości bez listy odbiorców (czat prywatny albo starsza wiadomość grupowa). */
 fun Message.readReceipts(currentMembers: Collection<String>): ReadReceipts? {
     if (recipients.isEmpty()) return null
+    // Kogoś, kto w międzyczasie opuścił grupę, nie liczymy - inaczej wiadomość nigdy nie byłaby przeczytana przez wszystkich
     val required = recipients.filter { it in currentMembers }
     return ReadReceipts(
         readBy = required.filter { it in readBy },

@@ -48,7 +48,12 @@ sealed interface GroupChatEvent {
     data class ShowReadReceipts(val readBy: List<String?>, val notReadBy: List<String?>) : GroupChatEvent
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
+/**
+ * ViewModel czatu grupowego. W porównaniu z [ChatViewModel] dochodzi tu obserwowanie
+ * samej grupy (zmiana składu, usunięcie), nazwy nadawców przy wiadomościach
+ * i informacja, kto przeczytał wiadomość.
+ */
+@OptIn(ExperimentalCoroutinesApi::class) // mapLatest
 class GroupChatViewModel(
     savedStateHandle: SavedStateHandle,
     authRepository: AuthRepository,
@@ -88,6 +93,8 @@ class GroupChatViewModel(
         combine(chat.filterNotNull(), messages) { chat, messages ->
             chat.participants.toSet() + messages.map { it.senderId } + messages.flatMap { it.recipients }
         }
+            // Pobieramy profile tylko wtedy, gdy zmienił się zbiór id, a nie przy każdej nowej wiadomości;
+            // mapLatest przerywa poprzednie pobieranie, jeśli w międzyczasie przyszły nowe dane
             .distinctUntilChanged()
             .mapLatest { ids -> userRepository.getUsers(ids).associateBy { it.id } }
             .catch { emit(emptyMap()) }
@@ -102,6 +109,7 @@ class GroupChatViewModel(
                     message.toItem(
                         currentUserId,
                         senderName = users[message.senderId]?.username,
+                        // Potrzebne do statusu "przeczytana przez wszystkich" (zob. displayStatus)
                         currentMembers = chat?.participants?.toSet()
                     )
                 }
@@ -112,6 +120,7 @@ class GroupChatViewModel(
         viewModelScope.launchReadReceipts(messages, isVisible, currentUserId, messageRepository)
     }
 
+    /** Działa tak samo jak w [ChatViewModel.onScreenVisibilityChanged]. */
     fun onScreenVisibilityChanged(visible: Boolean) {
         isVisible.value = visible
         if (visible) {
@@ -126,6 +135,8 @@ class GroupChatViewModel(
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             runSuspendCatching {
+                // Zapisujemy skład grupy z chwili wysłania - osoby dodane później
+                // nie wpływają na status "przeczytana" tej wiadomości
                 val recipients = chat.value?.participants.orEmpty().filter { it != currentUserId }.distinct()
                 messageRepository.send(chatId, currentUserId, trimmed, isGroup = true, recipients = recipients)
             }.onFailure {
@@ -137,7 +148,7 @@ class GroupChatViewModel(
     /** Przytrzymanie własnej wiadomości pokazuje, kto ją przeczytał. */
     fun onMessageLongClick(messageId: String) {
         val message = messages.value.firstOrNull { it.id == messageId } ?: return
-        if (message.senderId != currentUserId) return
+        if (message.senderId != currentUserId) return // cudze wiadomości - nic nie pokazujemy
         val members = chat.value?.participants.orEmpty()
         viewModelScope.launch {
             val receipts = message.readReceipts(members)

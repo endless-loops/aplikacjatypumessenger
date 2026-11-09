@@ -5,8 +5,13 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Formatowanie znaczników czasu (milisekundy od 1970) do wyświetlenia w UI.
+ * `SimpleDateFormat` nie jest bezpieczny wątkowo, dlatego za każdym razem tworzymy nowy.
+ */
 object TimeFormat {
 
+    /** Godzina przy dymku wiadomości. */
     fun time(timestamp: Long): String =
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
 
@@ -17,6 +22,7 @@ object TimeFormat {
         return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(timestamp))
     }
 
+    /** Pełniejszy format - „ostatnio aktywny” dla osób nieaktywnych dłużej niż dobę. */
     fun dateTime(timestamp: Long): String =
         SimpleDateFormat("dd.MM HH:mm", Locale.getDefault()).format(Date(timestamp))
 

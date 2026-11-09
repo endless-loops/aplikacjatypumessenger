@@ -11,6 +11,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Wysyłanie wiadomości i obsługa ich statusów (wysłana / dostarczona / przeczytana).
+ * Powiadomienia push nie są wysyłane stąd, tylko przez Cloud Function reagującą
+ * na nowy dokument w kolekcji `messages`.
+ */
 class MessageRepository(private val firestore: FirebaseFirestore) {
 
     private val messages get() = firestore.collection(MESSAGES)
@@ -22,6 +27,7 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
     fun observeMessages(chatId: String): Flow<List<Message>> =
         messages.whereEqualTo(FIELD_CHAT_ID, chatId)
             .orderBy(FIELD_TIMESTAMP, Query.Direction.ASCENDING)
+            // INCLUDE - dostajemy też zdarzenie, gdy serwer potwierdzi zapis, a nie tylko zmianę danych
             .snapshots(MetadataChanges.INCLUDE)
             .map { snapshot ->
                 snapshot.documents.mapNotNull { doc ->
@@ -47,6 +53,8 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
         recipients: List<String> = emptyList()
     ) {
         val messageRef = messages.document()
+        // Czas z telefonu, a nie serverTimestamp(), bo wiadomość ma się od razu ustawić
+        // na właściwym miejscu listy, także bez połączenia z siecią
         val timestamp = System.currentTimeMillis()
         val message = Message(
             id = messageRef.id,
@@ -66,6 +74,7 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
         )
         val chatRef = firestore.collection(ChatRepository.CHATS).document(chatId)
 
+        // Batch: albo zapisze się i wiadomość, i podgląd na liście czatów, albo nic
         firestore.batch()
             .set(messageRef, message)
             .update(
@@ -83,6 +92,7 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
      */
     suspend fun markAsRead(messageIds: Collection<String>, readerId: String) {
         val now = System.currentTimeMillis()
+        // Jeden batch może zawierać najwyżej 500 operacji
         messageIds.chunked(BATCH_LIMIT).forEach { chunk ->
             val batch = firestore.batch()
             chunk.forEach { id ->
@@ -103,6 +113,8 @@ class MessageRepository(private val firestore: FirebaseFirestore) {
     /** Oznacza wiadomość jako dostarczoną, nie cofając statusu "przeczytana". */
     suspend fun markAsDelivered(messageId: String) {
         val ref = messages.document(messageId)
+        // Transakcja, bo powiadomienie może dojść już po przeczytaniu wiadomości
+        // i zwykły update zmieniłby "przeczytana" z powrotem na "dostarczona"
         firestore.runTransaction { transaction ->
             if (transaction.get(ref).getString(FIELD_STATUS) == MessageStatus.SENT) {
                 transaction.update(

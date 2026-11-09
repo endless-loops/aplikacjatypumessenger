@@ -18,6 +18,10 @@ import com.example.aplikacjatypumessenger.utils.showToast
 import com.example.aplikacjatypumessenger.viewmodels.ChatEvent
 import com.example.aplikacjatypumessenger.viewmodels.ChatViewModel
 
+/**
+ * Ekran rozmowy prywatnej. Otwierany z listy rozmów, listy użytkowników albo z powiadomienia;
+ * wymaga w Intencie id czatu i id rozmówcy.
+ */
 class ChatActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityChatBinding
@@ -38,11 +42,13 @@ class ChatActivity : AppCompatActivity() {
         setContentView(binding.root)
         binding.root.applySystemBarsPadding()
 
+        // stackFromEnd - lista zaczyna się od dołu, jak w typowym komunikatorze
         binding.messagesRecyclerView.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.messagesRecyclerView.adapter = messageAdapter
 
         binding.backButton.setOnClickListener { finish() }
         binding.sendButton.setOnClickListener { send() }
+        // Wysyłanie także przyciskiem „wyślij” na klawiaturze
         binding.messageEditText.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 send()
@@ -55,6 +61,7 @@ class ChatActivity : AppCompatActivity() {
         collectWhenStarted(viewModel.uiState) { state ->
             binding.chatUserNameTextView.text = state.title ?: getString(R.string.default_user_name)
             val previousCount = messageAdapter.itemCount
+            // Przewijamy dopiero w callbacku, gdy adapter skończy aktualizować listę
             messageAdapter.submitList(state.messages) {
                 binding.messagesRecyclerView.scrollToNewMessages(previousCount, state.messages.lastOrNull()?.isMine == true)
             }
@@ -69,6 +76,7 @@ class ChatActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.onScreenVisibilityChanged(true)
+        // Po wejściu do rozmowy jej powiadomienie jest już niepotrzebne
         NotificationManagerCompat.from(this).cancel(MessagingService.notificationIdFor(chatId))
     }
 

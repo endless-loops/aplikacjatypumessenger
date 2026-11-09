@@ -15,6 +15,9 @@ import com.example.aplikacjatypumessenger.utils.TimeFormat
 import com.example.aplikacjatypumessenger.viewmodels.MessageItem
 
 /**
+ * Dymki wiadomości w rozmowie. Własne i cudze wiadomości mają osobne layouty
+ * (po prawej z ikoną statusu, po lewej bez), stąd dwa typy widoków.
+ *
  * @param showSenderNames w czatach grupowych nad cudzymi wiadomościami pokazuje autora
  * @param onOwnMessageLongClick wywoływane po przytrzymaniu własnej wiadomości
  */
@@ -45,8 +48,10 @@ class MessageAdapter(
 
     inner class SentViewHolder(private val binding: ItemMessageSentBinding) : RecyclerView.ViewHolder(binding.root) {
         init {
+            // Listener ustawiany raz przy tworzeniu ViewHoldera, a nie przy każdym bind()
             if (onOwnMessageLongClick != null) {
                 binding.root.setOnLongClickListener {
+                    // Pozycję sprawdzamy w chwili kliknięcia, bo lista mogła się w międzyczasie zmienić
                     val position = bindingAdapterPosition
                     if (position == RecyclerView.NO_POSITION) return@setOnLongClickListener false
                     onOwnMessageLongClick.invoke(getItem(position))
@@ -59,6 +64,7 @@ class MessageAdapter(
             binding.sentMessageTextView.text = message.text
             binding.sentTimeTextView.text = TimeFormat.time(message.timestamp)
 
+            // Zegar - wysyłanie, ✓ - wysłana, ✓✓ szare - dostarczona, ✓✓ niebieskie - przeczytana
             val (icon, color) = when (message.status) {
                 MessageStatus.SENDING -> R.drawable.ic_clock to android.R.color.darker_gray
                 MessageStatus.DELIVERED -> R.drawable.ic_double_check to android.R.color.darker_gray

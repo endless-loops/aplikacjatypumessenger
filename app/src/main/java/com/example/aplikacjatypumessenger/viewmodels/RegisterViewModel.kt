@@ -34,6 +34,10 @@ sealed interface RegisterEvent {
     data class ShowMessage(val text: UiText) : RegisterEvent
 }
 
+/**
+ * Rejestracja w dwóch krokach: konto w Firebase Auth, a potem profil w kolekcji `users`.
+ * Stan i zdarzenia działają tak samo jak w [LoginViewModel].
+ */
 class RegisterViewModel(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository
@@ -48,6 +52,7 @@ class RegisterViewModel(
     fun register(email: String, password: String, username: String) {
         val trimmedEmail = email.trim()
         val trimmedUsername = username.trim()
+        // Sprawdzamy wszystkie pola naraz, żeby użytkownik od razu zobaczył wszystkie błędy
         val state = RegisterUiState(
             usernameError = if (Validators.isValidUsername(trimmedUsername)) null
             else UiText.Res(R.string.error_username_too_short, listOf(Validators.MIN_USERNAME_LENGTH)),
@@ -70,12 +75,13 @@ class RegisterViewModel(
                             username = trimmedUsername,
                             status = UserStatus.ONLINE,
                             lastSeen = System.currentTimeMillis(),
+                            // Token od razu przy rejestracji, żeby powiadomienia działały od pierwszej wiadomości
                             fcmToken = userRepository.fetchFcmToken()
                         )
                     )
                 } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
+                    throw e
+                } catch (e: Exception) {
                     // Bez profilu w Firestore konto byłoby bezużyteczne - wycofujemy rejestrację
                     runSuspendCatching { authRepository.deleteCurrentUser() }
                     _events.send(RegisterEvent.ShowMessage(UiText.error(R.string.error_saving_user, e)))

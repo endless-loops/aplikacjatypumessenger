@@ -2,6 +2,12 @@ package com.example.aplikacjatypumessenger.models
 
 import com.google.firebase.firestore.PropertyName
 
+/**
+ * Dokument z kolekcji `chats` - rozmowa prywatna (dwóch uczestników) albo grupa.
+ * Wartości domyślne są potrzebne, bo Firestore tworzy obiekt bezargumentowym konstruktorem.
+ * Ostatnia wiadomość jest trzymana w dokumencie czatu, żeby lista rozmów nie musiała
+ * osobno pobierać wiadomości.
+ */
 data class Chat(
     val id: String = "",
     val participants: List<String> = emptyList(),
